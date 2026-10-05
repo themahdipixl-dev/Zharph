@@ -14,34 +14,36 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 
 const { width } = Dimensions.get('window');
-const PADDING = 18;
-const GAP = 10;
-const CARD_WIDTH = (width - PADDING * 2 - GAP * 2) / 3;
 
 const COLORS = {
-  background: '#121318',
-  surface: '#1C1D24',
-  surfaceVariant: '#292A33',
-  primary: '#B9C5FF',
-  onPrimary: '#202A55',
-  secondary: '#C5C5D8',
-  onSurface: '#E4E1EA',
-  onSurfaceVariant: '#C5C4CD',
-  outline: '#474852',
+  background: '#111318',
+  surface: '#1B1B20',
+  surfaceVariant: '#24242B',
+  primary: '#BFC6FF',
+  onPrimary: '#272D55',
+  secondaryContainer: '#41465F',
+  onSecondaryContainer: '#E1E3FF',
+  onSurface: '#E5E1E9',
+  onSurfaceVariant: '#C6C5CE',
+  outline: '#46464F',
 };
+
+const PADDING = 20;
+const GAP = 10;
+const CARD_WIDTH = (width - PADDING * 2 - GAP * 2) / 3;
 
 const TABS = ['All', 'Nature', 'Abstract', 'Architecture'];
 
 const DEFAULT_WALLPAPERS = [
-  { id: '1', title: 'Aurora', category: 'Nature', colors: ['#526B78', '#182229'], icon: '✦' },
-  { id: '2', title: 'Summit', category: 'Nature', colors: ['#77858D', '#28343A'], icon: '⌁' },
-  { id: '3', title: 'Lunar', category: 'Abstract', colors: ['#5B5967', '#1D1C25'], icon: '○' },
-  { id: '4', title: 'Tide', category: 'Nature', colors: ['#47798A', '#162F38'], icon: '≈' },
-  { id: '5', title: 'Noir', category: 'Abstract', colors: ['#68636F', '#211F27'], icon: '◐' },
-  { id: '6', title: 'Haze', category: 'Abstract', colors: ['#83848A', '#34353B'], icon: '◌' },
-  { id: '7', title: 'Dune', category: 'Nature', colors: ['#89725E', '#35281F'], icon: '◇' },
-  { id: '8', title: 'Pine', category: 'Nature', colors: ['#536E5C', '#1B2B22'], icon: '♧' },
-  { id: '9', title: 'Grid', category: 'Architecture', colors: ['#68737B', '#252D32'], icon: '＋' },
+  { id: '1', title: 'Aurora', category: 'Nature', colors: ['#607D88', '#18262D'], icon: '✦' },
+  { id: '2', title: 'Summit', category: 'Nature', colors: ['#7B858A', '#293439'], icon: '⌁' },
+  { id: '3', title: 'Lunar', category: 'Abstract', colors: ['#686675', '#1F1E28'], icon: '○' },
+  { id: '4', title: 'Tide', category: 'Nature', colors: ['#4E8190', '#173039'], icon: '≈' },
+  { id: '5', title: 'Noir', category: 'Abstract', colors: ['#706A77', '#242128'], icon: '◐' },
+  { id: '6', title: 'Haze', category: 'Abstract', colors: ['#898A90', '#36373D'], icon: '◌' },
+  { id: '7', title: 'Dune', category: 'Nature', colors: ['#927A64', '#392A20'], icon: '◇' },
+  { id: '8', title: 'Pine', category: 'Nature', colors: ['#5A755F', '#1C2D23'], icon: '♧' },
+  { id: '9', title: 'Grid', category: 'Architecture', colors: ['#6D777E', '#272F34'], icon: '＋' },
 ];
 
 export default function App() {
@@ -75,28 +77,45 @@ export default function App() {
       ? DEFAULT_WALLPAPERS
       : DEFAULT_WALLPAPERS.filter((item) => item.category === activeTab);
 
+  if (selectedWallpaper) {
+    return (
+      <View style={styles.root}>
+        <StatusBar style="light" />
+        <EditorScreen
+          imageUri={imageUri}
+          wallpaper={selectedWallpaper}
+          onClose={() => {
+            setSelectedWallpaper(null);
+            setImageUri(null);
+          }}
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
 
       <SafeAreaView style={styles.safe}>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.header}>
-            <View style={styles.headerText}>
-              <Text style={styles.kicker}>ZHARPH</Text>
-              <Text style={styles.title}>Find your depth.</Text>
-              <Text style={styles.intro}>
-                A collection of wallpapers made for depth.
-              </Text>
-            </View>
+            <Text style={styles.logo}>Zharph</Text>
 
-            <Pressable onPress={pickWallpaper} style={styles.iconButton}>
-              <Text style={styles.headerPlus}>＋</Text>
+            <Pressable onPress={pickWallpaper} style={styles.topAction}>
+              <Text style={styles.topActionIcon}>＋</Text>
             </Pressable>
           </View>
 
-          <View style={styles.tabsTrack}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+          <View style={styles.tabsContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.tabs}
+            >
               {TABS.map((tab) => {
                 const active = tab === activeTab;
                 return (
@@ -105,7 +124,9 @@ export default function App() {
                     onPress={() => setActiveTab(tab)}
                     style={[styles.tab, active && styles.tabActive]}
                   >
-                    <Text style={[styles.tabText, active && styles.tabTextActive]}>{tab}</Text>
+                    <Text style={[styles.tabText, active && styles.tabTextActive]}>
+                      {tab}
+                    </Text>
                   </Pressable>
                 );
               })}
@@ -116,7 +137,7 @@ export default function App() {
             <Text style={styles.sectionTitle}>
               {activeTab === 'All' ? 'Wallpapers' : activeTab}
             </Text>
-            <Text style={styles.sectionCount}>{wallpapers.length} available</Text>
+            <Text style={styles.sectionCount}>{wallpapers.length}</Text>
           </View>
 
           <View style={styles.grid}>
@@ -126,7 +147,6 @@ export default function App() {
                   <Text style={styles.addPlus}>＋</Text>
                 </View>
                 <Text style={styles.addTitle}>Your photo</Text>
-                <Text style={styles.addCaption}>Choose from gallery</Text>
               </View>
             </Pressable>
 
@@ -157,17 +177,6 @@ export default function App() {
           <NavButton icon="⋯" label="More" />
         </View>
       </SafeAreaView>
-
-      {selectedWallpaper && (
-        <EditorScreen
-          imageUri={imageUri}
-          wallpaper={selectedWallpaper}
-          onClose={() => {
-            setSelectedWallpaper(null);
-            setImageUri(null);
-          }}
-        />
-      )}
     </View>
   );
 }
@@ -185,19 +194,14 @@ function NavButton({ icon, label, active }) {
 
 function EditorScreen({ imageUri, wallpaper, onClose }) {
   return (
-    <View style={styles.editorOverlay}>
-      <StatusBar style="light" />
-
+    <View style={styles.editor}>
       <SafeAreaView style={styles.editorSafe}>
         <View style={styles.editorHeader}>
           <Pressable onPress={onClose} style={styles.iconButton}>
             <Text style={styles.backText}>‹</Text>
           </Pressable>
 
-          <View style={styles.editorHeaderCenter}>
-            <Text style={styles.editorKicker}>EDIT</Text>
-            <Text style={styles.editorTitle}>{wallpaper.title}</Text>
-          </View>
+          <Text style={styles.editorTitle}>{wallpaper.title}</Text>
 
           <View style={styles.headerSpacer} />
         </View>
@@ -214,7 +218,7 @@ function EditorScreen({ imageUri, wallpaper, onClose }) {
 
             <LinearGradient
               pointerEvents="none"
-              colors={['rgba(0,0,0,0.08)', 'transparent', 'rgba(0,0,0,0.45)']}
+              colors={['rgba(0,0,0,0.05)', 'transparent', 'rgba(0,0,0,0.45)']}
               style={StyleSheet.absoluteFill}
             />
 
@@ -226,13 +230,7 @@ function EditorScreen({ imageUri, wallpaper, onClose }) {
         </View>
 
         <View style={styles.editorPanel}>
-          <View style={styles.panelHeading}>
-            <View>
-              <Text style={styles.panelKicker}>DEPTH CONTROLS</Text>
-              <Text style={styles.panelTitle}>Shape the layer.</Text>
-            </View>
-            <Text style={styles.panelStep}>01</Text>
-          </View>
+          <Text style={styles.panelTitle}>Edit wallpaper</Text>
 
           <View style={styles.controlRow}>
             <ControlChip label="Depth" active />
@@ -253,7 +251,9 @@ function EditorScreen({ imageUri, wallpaper, onClose }) {
 function ControlChip({ label, active }) {
   return (
     <Pressable style={[styles.controlChip, active && styles.controlChipActive]}>
-      <Text style={[styles.controlLabel, active && styles.controlLabelActive]}>{label}</Text>
+      <Text style={[styles.controlLabel, active && styles.controlLabelActive]}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -263,44 +263,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  safe: { flex: 1 },
+  safe: {
+    flex: 1,
+  },
   content: {
     paddingHorizontal: PADDING,
-    paddingTop: 14,
-    paddingBottom: 112,
+    paddingTop: 12,
+    paddingBottom: 108,
   },
   header: {
+    height: 64,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingTop: 8,
   },
-  headerText: {
-    flex: 1,
-    paddingRight: 16,
-  },
-  kicker: {
-    color: COLORS.secondary,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 2.2,
-    marginBottom: 7,
-  },
-  title: {
+  logo: {
     color: COLORS.onSurface,
-    fontSize: 31,
-    lineHeight: 37,
+    fontSize: 28,
     fontWeight: '700',
     letterSpacing: -0.7,
   },
-  intro: {
-    color: COLORS.onSurfaceVariant,
-    fontSize: 13,
-    lineHeight: 19,
-    marginTop: 9,
-    maxWidth: 300,
-  },
-  iconButton: {
+  topAction: {
     width: 48,
     height: 48,
     borderRadius: 24,
@@ -308,17 +291,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerPlus: {
+  topActionIcon: {
     color: COLORS.onSurface,
-    fontSize: 27,
+    fontSize: 26,
     fontWeight: '300',
     marginTop: -2,
   },
-  tabsTrack: {
-    marginTop: 26,
-    marginBottom: 20,
-    borderRadius: 20,
+  tabsContainer: {
+    marginTop: 8,
     backgroundColor: COLORS.surface,
+    borderRadius: 24,
     padding: 4,
   },
   tabs: {
@@ -328,7 +310,7 @@ const styles = StyleSheet.create({
     minWidth: 72,
     height: 40,
     paddingHorizontal: 16,
-    borderRadius: 18,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -345,20 +327,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    marginTop: 22,
     marginBottom: 12,
     paddingHorizontal: 2,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   sectionTitle: {
     color: COLORS.onSurface,
-    fontSize: 14,
+    fontSize: 17,
     fontWeight: '700',
   },
   sectionCount: {
     color: COLORS.onSurfaceVariant,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '600',
   },
   grid: {
@@ -384,16 +367,16 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceVariant,
   },
   addIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   addPlus: {
     color: COLORS.onPrimary,
-    fontSize: 28,
+    fontSize: 27,
     fontWeight: '300',
     marginTop: -2,
   },
@@ -402,11 +385,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     marginTop: 10,
-  },
-  addCaption: {
-    color: COLORS.onSurfaceVariant,
-    fontSize: 8,
-    marginTop: 3,
   },
   cardArt: {
     flex: 1,
@@ -482,9 +460,8 @@ const styles = StyleSheet.create({
     color: COLORS.onSurface,
     fontWeight: '700',
   },
-  editorOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 10,
+  editor: {
+    flex: 1,
     backgroundColor: COLORS.background,
   },
   editorSafe: {
@@ -497,26 +474,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  iconButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.surfaceVariant,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   backText: {
     color: COLORS.onSurface,
-    fontSize: 35,
+    fontSize: 34,
     fontWeight: '300',
     marginTop: -5,
   },
-  editorHeaderCenter: {
-    alignItems: 'center',
-  },
-  editorKicker: {
-    color: COLORS.secondary,
-    fontSize: 8,
-    fontWeight: '800',
-    letterSpacing: 2,
-  },
   editorTitle: {
     color: COLORS.onSurface,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
-    marginTop: 2,
   },
   headerSpacer: {
     width: 48,
@@ -572,26 +547,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.06)',
   },
-  panelHeading: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-  },
-  panelKicker: {
-    color: COLORS.secondary,
-    fontSize: 8,
-    fontWeight: '800',
-    letterSpacing: 1.8,
-  },
   panelTitle: {
     color: COLORS.onSurface,
-    fontSize: 19,
-    fontWeight: '700',
-    marginTop: 3,
-  },
-  panelStep: {
-    color: COLORS.onSurfaceVariant,
-    fontSize: 11,
+    fontSize: 18,
     fontWeight: '700',
   },
   controlRow: {
@@ -616,7 +574,7 @@ const styles = StyleSheet.create({
   controlLabel: {
     color: COLORS.onSurfaceVariant,
     fontSize: 10,
-    fontWeight: '650',
+    fontWeight: '600',
   },
   controlLabelActive: {
     color: COLORS.onPrimary,
