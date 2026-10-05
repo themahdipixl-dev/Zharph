@@ -73,8 +73,7 @@ export default function App() {
         >
           <View style={styles.hero}>
             <Text style={styles.eyebrow}>ZHARPH</Text>
-            <Text style={styles.title}>Give your wallpaper{'
-'}some depth.</Text>
+            <Text style={styles.title}>{`Give your wallpaper\nsome depth.`}</Text>
             <Text style={styles.description}>
               Choose a wallpaper and turn it into a layered lock-screen experience.
             </Text>
