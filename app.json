@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Zharph",
+    "slug": "zharph",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "android": {
+      "package": "com.themahdipixl.zharph"
+    }
+  }
+}
