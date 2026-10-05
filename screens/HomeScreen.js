@@ -79,8 +79,16 @@ export default function HomeScreen({ onOpenEditor, theme }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1 },
-  header: { height: 82, justifyContent: 'flex-end', paddingHorizontal: 20, paddingBottom: 14 },
+  safe: {
+    flex: 1,
+    paddingTop: 12,
+  },
+  header: {
+    height: 82,
+    justifyContent: 'flex-end',
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
   logo: { fontSize: 29, fontWeight: '700', letterSpacing: -0.8 },
   tabs: { paddingHorizontal: 16, paddingBottom: 14, gap: 8 },
   tab: { height: 40, paddingHorizontal: 17, borderRadius: 20, justifyContent: 'center' },
