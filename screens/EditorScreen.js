@@ -282,7 +282,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
   const [depthMode, setDepthMode] = useState(false);
   const [depthError, setDepthError] = useState(false);
   const [depthErrorMessage, setDepthErrorMessage] = useState('');
-  const [aboveLayers, setAboveLayers] = useState([]);
+  const [layers, setLayers] = useState([]);
   const [selectedLayer, setSelectedLayer] = useState(null);
   const [previewSize, setPreviewSize] = useState({ width: 0, height: 0 });
   const [clockPosition, setClockPosition] = useState({ x: 0, y: 0 });
@@ -300,7 +300,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
     setDepthUri(null);
     setDepthError(false);
     setDepthErrorMessage('');
-    setAboveLayers([]);
+    setLayers([]);
     setSelectedLayer(null);
     setClockPosition({ x: 0, y: 0 });
 
