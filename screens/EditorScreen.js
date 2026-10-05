@@ -488,8 +488,8 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.layers}
           >
-            {LAYERS.map((layer) => {
-              const above = aboveLayers.includes(layer.id);
+            {layers.map((layer) => {
+              const above = layer.above;
               const selected = selectedLayer === layer.id;
 
               return (
@@ -515,7 +515,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
                     {layer.label}
                   </Text>
                   <Text style={[styles.layerState, { color: above ? theme.primary : theme.onSurfaceVariant }]}>
-                    {depthState === 'ready' ? (above ? 'Above' : 'Below') : 'Analyzing'}
+                    {depthState === 'ready' ? (above ? 'Above clock' : 'Below clock') : 'Analyzing'}
                   </Text>
                 </Pressable>
               );
