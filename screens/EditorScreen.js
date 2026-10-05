@@ -111,7 +111,9 @@ async function callDepth(imageUri, attempt = 0) {
       try {
         const errorBody = await runResponse.json();
         message = errorBody?.detail || errorBody?.error || message;
-      } catch {}
+      } catch (parseError) {
+        // Keep the HTTP error message when the server response is not JSON.
+      }
       throw new Error(String(message));
     }
 
