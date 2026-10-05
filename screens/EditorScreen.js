@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { fetch as expoFetch } from 'expo/fetch';
 import {
   Canvas,
   Fill,
@@ -70,7 +71,7 @@ async function callDepth(imageUri, attempt = 0) {
     type: 'image/jpeg',
   });
 
-  const uploadResponse = await fetch(DEPTH_API + '/gradio_api/upload', {
+  const uploadResponse = await expoFetch(DEPTH_API + '/gradio_api/upload', {
     method: 'POST',
     body: form,
   });
@@ -95,7 +96,7 @@ async function callDepth(imageUri, attempt = 0) {
     orig_name: 'zharph-depth.jpg',
   };
 
-  const callResponse = await fetch(DEPTH_API + '/gradio_api/call/on_submit', {
+  const callResponse = await expoFetch(DEPTH_API + '/gradio_api/call/on_submit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ data: [fileData] }),
@@ -116,7 +117,7 @@ async function callDepth(imageUri, attempt = 0) {
   const timeout = setTimeout(() => controller.abort(), 150000);
 
   try {
-    const response = await fetch(
+    const response = await expoFetch(
       DEPTH_API + '/gradio_api/call/on_submit/' + eventId,
       { signal: controller.signal },
     );
