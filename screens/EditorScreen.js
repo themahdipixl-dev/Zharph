@@ -139,19 +139,47 @@ async function callDepth(imageUri, attempt = 0) {
 
     const data = result?.data ?? result;
 
-    if (Array.isArray(data) && data.length > 1) {
-      return getDepthPath(data[1]);
+    const findDepthFile = (value) => {
+      if (!value) return null;
+
+      if (typeof value === 'string') {
+        return value.startsWith('http') || value.includes('/') ? value : null;
+      }
+
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          const found = findDepthFile(item);
+          if (found) return found;
+        }
+        return null;
+      }
+
+      if (typeof value === 'object') {
+        if (value.path) return value.path;
+        if (value.url) return value.url;
+        if (value.name && typeof value.name === 'string') return value.name;
+
+        for (const key of ['data', 'value', 'file', 'files', 'output']) {
+          const found = findDepthFile(value[key]);
+          if (found) return found;
+        }
+      }
+
+      return null;
+    };
+
+    const depthPath = findDepthFile(data);
+
+    if (depthPath) {
+      return getDepthPath(depthPath);
     }
 
-    if (Array.isArray(data) && data.length === 1) {
-      return getDepthPath(data[0]);
+    const serialized = JSON.stringify(data || {});
+    if (/limit|quota|exceed|gpu|rate.?limit|billing|credit/i.test(serialized)) {
+      throw new Error('Depth service usage limit reached');
     }
 
-    if (data?.path || typeof data === 'string') {
-      return getDepthPath(data);
-    }
-
-    throw new Error('Depth response did not contain a depth map');
+    throw new Error('Depth service returned no depth file');
   } catch (error) {
     if (attempt < 2) return callDepth(imageUri, attempt + 1);
     if (error?.name === 'AbortError') {
@@ -676,7 +704,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
                 color={theme.primary}
               />
               <Text style={[styles.analyzingText, { color: theme.onSurface }]}>
-                Depth failed · Retry${depthErrorMessage ? ` · ${depthErrorMessage}` : ''}
+                Depth failed · Retry{depthErrorMessage ? ` · ${depthErrorMessage}` : ''}
               </Text>
             </Pressable>
           )}
