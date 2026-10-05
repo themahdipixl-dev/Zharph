@@ -16,6 +16,10 @@
     "expo-router": "~55.0.0",
     "react": "19.2.0",
     "react-native": "0.83.0",
-    "@shopify/react-native-skia": "2.3.10"
+    "@shopify/react-native-skia": "2.3.10",
+    "@tensorflow/tfjs": "4.22.0",
+    "@tensorflow/tfjs-react-native": "1.0.0",
+    "@tensorflow-models/deeplab": "0.2.2",
+    "expo-gl": "~55.0.18"
   }
 }
