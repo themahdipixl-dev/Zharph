@@ -9,7 +9,6 @@ import {
   View,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { fetch as expoFetch } from 'expo/fetch';
 import {
   Canvas,
   Fill,
@@ -71,7 +70,7 @@ async function callDepth(imageUri, attempt = 0) {
     type: 'image/jpeg',
   });
 
-  const uploadResponse = await expoFetch(DEPTH_API + '/gradio_api/upload', {
+  const uploadResponse = await fetch(DEPTH_API + '/gradio_api/upload', {
     method: 'POST',
     body: form,
   });
@@ -96,93 +95,47 @@ async function callDepth(imageUri, attempt = 0) {
     orig_name: 'zharph-depth.jpg',
   };
 
-  const callResponse = await expoFetch(DEPTH_API + '/gradio_api/call/on_submit', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ data: [fileData] }),
-  });
-
-  if (!callResponse.ok) {
-    if (attempt < 2) return callDepth(imageUri, attempt + 1);
-    throw new Error('Depth request failed (' + callResponse.status + ')');
-  }
-
-  const { event_id: eventId } = await callResponse.json();
-  if (!eventId) {
-    if (attempt < 2) return callDepth(imageUri, attempt + 1);
-    throw new Error('Depth queue did not return an event id');
-  }
-
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 150000);
 
   try {
-    const response = await expoFetch(
-      DEPTH_API + '/gradio_api/call/on_submit/' + eventId,
-      { signal: controller.signal },
-    );
+    const runResponse = await fetch(DEPTH_API + '/gradio_api/run/on_submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: [fileData] }),
+      signal: controller.signal,
+    });
 
-    if (!response.ok) {
-      throw new Error('Depth stream failed (' + response.status + ')');
+    if (!runResponse.ok) {
+      let message = 'Depth request failed (' + runResponse.status + ')';
+      try {
+        const errorBody = await runResponse.json();
+        message = errorBody?.detail || errorBody?.error || message;
+      } catch {}
+      throw new Error(String(message));
     }
 
-    const reader = response.body?.getReader?.();
-    if (!reader) throw new Error('Depth stream unavailable');
+    const result = await runResponse.json();
+    const data = result?.data ?? result;
 
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let eventType = '';
-    let resultData = null;
-    let streamDone = false;
-
-    while (!streamDone) {
-      const { done, value } = await reader.read();
-      if (done) {
-        streamDone = true;
-        continue;
-      }
-
-      buffer += decoder.decode(value, { stream: true });
-      const chunks = buffer.split(/\n\n/);
-      buffer = chunks.pop() || '';
-
-      for (const chunk of chunks) {
-        const lines = chunk.split('\n');
-        const typeLine = lines.find((line) => line.startsWith('event:'));
-        const dataLine = lines.find((line) => line.startsWith('data:'));
-
-        if (typeLine) eventType = typeLine.slice(6).trim();
-        if (!dataLine) continue;
-
-        let payload;
-        try {
-          payload = JSON.parse(dataLine.slice(5).trim());
-        } catch {
-          continue;
-        }
-
-        if (eventType === 'error') {
-          const message = Array.isArray(payload)
-            ? payload[0]
-            : payload?.message || payload?.error || 'Depth model error';
-          throw new Error(String(message));
-        }
-
-        if (eventType === 'complete') {
-          resultData = payload;
-          streamDone = true;
-          break;
-        }
-      }
-
-      if (resultData) break;
+    if (Array.isArray(data) && data.length > 1) {
+      return getDepthPath(data[1]);
     }
 
-    if (!resultData) throw new Error('Depth ended without a result');
+    if (Array.isArray(data) && data.length === 1) {
+      return getDepthPath(data[0]);
+    }
 
-    return getDepthPath(resultData?.[1]);
+    if (data?.path || typeof data === 'string') {
+      return getDepthPath(data);
+    }
+
+    throw new Error('Depth response did not contain a depth map');
   } catch (error) {
     if (attempt < 2) return callDepth(imageUri, attempt + 1);
+    if (error?.name === 'AbortError') {
+      throw new Error('Depth request timed out');
+    }
     throw error;
   } finally {
     clearTimeout(timeout);
