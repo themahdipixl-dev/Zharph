@@ -13,10 +13,24 @@ import {
   Canvas,
   Fill,
   ImageShader,
+  Shader,
+  Skia,
   useImage,
 } from '@shopify/react-native-skia';
 
 const DEPTH_API = 'https://depth-anything-depth-anything-v2.hf.space';
+const SEGMENTATION_API = 'https://dense-captioning-medsam-inference.hf.space';
+
+const MASK_SHADER = Skia.RuntimeEffect.Make(`
+uniform shader image;
+uniform shader mask;
+
+half4 main(float2 xy) {
+  half4 color = image.eval(xy);
+  half4 maskColor = mask.eval(xy);
+  return half4(color.rgb, color.a * maskColor.a);
+}
+`);
 
 const TOOLS = [
   ['layers-outline', 'Depth'],
@@ -149,6 +163,352 @@ async function callDepth(imageUri, attempt = 0) {
 }
 
 
+async function callSegmentation(imageUri, attempt = 0) {
+  const form = new FormData();
+  form.append('files', {
+    uri: imageUri,
+    name: 'zharph-layers.jpg',
+    type: 'image/jpeg',
+  });
+
+  const uploadResponse = await fetch(SEGMENTATION_API + '/gradio_api/upload', {
+    method: 'POST',
+    body: form,
+  });
+
+  if (!uploadResponse.ok) {
+    if (attempt < 2) return callSegmentation(imageUri, attempt + 1);
+    throw new Error('Layer upload failed (' + uploadResponse.status + ')');
+  }
+
+  const uploaded = await uploadResponse.json();
+  const uploadedFile = Array.isArray(uploaded) ? uploaded[0] : uploaded;
+  const path = typeof uploadedFile === 'string' ? uploadedFile : uploadedFile?.path;
+
+  if (!path) {
+    if (attempt < 2) return callSegmentation(imageUri, attempt + 1);
+    throw new Error('Layer upload path missing');
+  }
+
+  const fileData = {
+    path,
+    meta: { _type: 'gradio.FileData' },
+    orig_name: 'zharph-layers.jpg',
+  };
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 150000);
+
+  try {
+    const queueResponse = await fetch(
+      SEGMENTATION_API + '/gradio_api/call/generate_auto_masks',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: [
+            fileData,
+            JSON.stringify({
+              resize_longest: 640,
+              points_per_side: 16,
+              pred_iou_thresh: 0.72,
+              stability_score_thresh: 0.72,
+              min_mask_region_area: 700,
+              max_masks: 8,
+            }),
+          ],
+        }),
+        signal: controller.signal,
+      },
+    );
+
+    if (!queueResponse.ok) {
+      let message = 'Layer request failed (' + queueResponse.status + ')';
+      try {
+        const errorBody = await queueResponse.json();
+        message = errorBody?.detail || errorBody?.error || message;
+      } catch (parseError) {
+        // Keep the HTTP error message when the server response is not JSON.
+      }
+      throw new Error(String(message));
+    }
+
+    const queueResult = await queueResponse.json();
+    const eventId = queueResult?.event_id;
+
+    if (!eventId) {
+      throw new Error('Layer queue did not return an event ID');
+    }
+
+    const resultResponse = await fetch(
+      SEGMENTATION_API +
+        '/gradio_api/call/generate_auto_masks/' +
+        encodeURIComponent(eventId),
+      { method: 'GET', signal: controller.signal },
+    );
+
+    if (!resultResponse.ok) {
+      throw new Error('Layer result failed (' + resultResponse.status + ')');
+    }
+
+    const streamText = await resultResponse.text();
+    const dataLine = streamText
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice(5).trim())
+      .filter(Boolean)
+      .pop();
+
+    if (!dataLine) {
+      throw new Error('Layer queue returned no result');
+    }
+
+    const result = JSON.parse(dataLine);
+    if (result?.error) {
+      throw new Error(String(result.error));
+    }
+
+    const data = result?.data ?? result;
+    const payload =
+      typeof data === 'string'
+        ? JSON.parse(data)
+        : Array.isArray(data)
+          ? typeof data[0] === 'string'
+            ? JSON.parse(data[0])
+            : data[0]
+          : data;
+
+    if (!payload?.success) {
+      throw new Error(payload?.error || 'Layer segmentation failed');
+    }
+
+    return payload;
+  } catch (error) {
+    if (attempt < 2) return callSegmentation(imageUri, attempt + 1);
+    if (error?.name === 'AbortError') {
+      throw new Error('Layer request timed out');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function crc32(bytes) {
+  let crc = 0xffffffff;
+
+  for (let i = 0; i < bytes.length; i += 1) {
+    crc ^= bytes[i];
+
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+    }
+  }
+
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function adler32(bytes) {
+  let a = 1;
+  let b = 0;
+
+  for (let i = 0; i < bytes.length; i += 1) {
+    a = (a + bytes[i]) % 65521;
+    b = (b + a) % 65521;
+  }
+
+  return (((b << 16) | a) >>> 0);
+}
+
+function writeUint32(bytes, offset, value) {
+  bytes[offset] = (value >>> 24) & 255;
+  bytes[offset + 1] = (value >>> 16) & 255;
+  bytes[offset + 2] = (value >>> 8) & 255;
+  bytes[offset + 3] = value & 255;
+}
+
+function pngChunk(type, data) {
+  const typeBytes = new Uint8Array([
+    type.charCodeAt(0),
+    type.charCodeAt(1),
+    type.charCodeAt(2),
+    type.charCodeAt(3),
+  ]);
+  const chunk = new Uint8Array(8 + data.length + 4);
+  writeUint32(chunk, 0, data.length);
+  chunk.set(typeBytes, 4);
+  chunk.set(data, 8);
+
+  const crcInput = new Uint8Array(typeBytes.length + data.length);
+  crcInput.set(typeBytes, 0);
+  crcInput.set(data, 4);
+
+  writeUint32(chunk, 8 + data.length, crc32(crcInput));
+  return chunk;
+}
+
+function concatBytes(parts) {
+  const total = parts.reduce((sum, part) => sum + part.length, 0);
+  const output = new Uint8Array(total);
+  let offset = 0;
+
+  parts.forEach((part) => {
+    output.set(part, offset);
+    offset += part.length;
+  });
+
+  return output;
+}
+
+function bytesToBase64(bytes) {
+  const alphabet =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let output = '';
+
+  for (let i = 0; i < bytes.length; i += 3) {
+    const a = bytes[i];
+    const b = i + 1 < bytes.length ? bytes[i + 1] : 0;
+    const c = i + 2 < bytes.length ? bytes[i + 2] : 0;
+    const value = (a << 16) | (b << 8) | c;
+
+    output += alphabet[(value >> 18) & 63];
+    output += alphabet[(value >> 12) & 63];
+    output += i + 1 < bytes.length ? alphabet[(value >> 6) & 63] : '=';
+    output += i + 2 < bytes.length ? alphabet[value & 63] : '=';
+  }
+
+  return output;
+}
+
+function maskToPngDataUri(mask, width, height) {
+  const raw = new Uint8Array(height * (width * 4 + 1));
+  let rawOffset = 0;
+
+  for (let y = 0; y < height; y += 1) {
+    raw[rawOffset] = 0;
+    rawOffset += 1;
+
+    const row = mask[y] || [];
+    for (let x = 0; x < width; x += 1) {
+      const alpha = row[x] ? 255 : 0;
+      raw[rawOffset++] = 255;
+      raw[rawOffset++] = 255;
+      raw[rawOffset++] = 255;
+      raw[rawOffset++] = alpha;
+    }
+  }
+
+  const zlibParts = [
+    new Uint8Array([0x78, 0x01]),
+  ];
+
+  for (let offset = 0; offset < raw.length; offset += 65535) {
+    const size = Math.min(65535, raw.length - offset);
+    const block = new Uint8Array(5 + size);
+    block[0] = offset + size >= raw.length ? 1 : 0;
+    block[1] = size & 255;
+    block[2] = (size >>> 8) & 255;
+    const inverse = 65535 - size;
+    block[3] = inverse & 255;
+    block[4] = (inverse >>> 8) & 255;
+    block.set(raw.subarray(offset, offset + size), 5);
+    zlibParts.push(block);
+  }
+
+  const adler = new Uint8Array(4);
+  writeUint32(adler, 0, adler32(raw));
+  zlibParts.push(adler);
+
+  const signature = new Uint8Array([
+    137, 80, 78, 71, 13, 10, 26, 10,
+  ]);
+  const header = new Uint8Array(13);
+  writeUint32(header, 0, width);
+  writeUint32(header, 4, height);
+  header[8] = 8;
+  header[9] = 6;
+
+  const png = concatBytes([
+    signature,
+    pngChunk('IHDR', header),
+    pngChunk('IDAT', concatBytes(zlibParts)),
+    pngChunk('IEND', new Uint8Array(0)),
+  ]);
+
+  return 'data:image/png;base64,' + bytesToBase64(png);
+}
+
+function getLayerLabel(mask, index, width, height) {
+  const [x, y, w, h] = mask.bbox || [0, 0, width, height];
+  const centerX = x + w / 2;
+  const centerY = y + h / 2;
+  const horizontal =
+    centerX < width * 0.34 ? 'Left' : centerX > width * 0.66 ? 'Right' : 'Center';
+  const vertical =
+    centerY < height * 0.34 ? 'Upper' : centerY > height * 0.66 ? 'Lower' : 'Middle';
+
+  return index === 0
+    ? `${vertical} ${horizontal} object`
+    : `${vertical} ${horizontal} object ${index + 1}`;
+}
+
+function buildLayers(payload) {
+  const [height, width] = payload.image_size || [];
+  if (!width || !height || !Array.isArray(payload.masks)) {
+    throw new Error('Layer response did not contain usable masks');
+  }
+
+  const imageArea = width * height;
+
+  return payload.masks
+    .filter((mask) => {
+      const ratio = Number(mask.area || 0) / imageArea;
+      return (
+        ratio >= 0.012 &&
+        ratio <= 0.72 &&
+        Number(mask.predicted_iou || 0) >= 0.65 &&
+        Number(mask.stability_score || 0) >= 0.65
+      );
+    })
+    .slice(0, 8)
+    .map((mask, index) => ({
+      id: `ai-layer-${index + 1}`,
+      label: getLayerLabel(mask, index, width, height),
+      above: false,
+      maskUri: maskToPngDataUri(mask.segmentation, width, height),
+      bbox: mask.bbox,
+      area: mask.area,
+    }));
+}
+
+
+
+
+function MaskedLayer({ layer, image, previewSize }) {
+  const mask = useImage(layer.maskUri);
+
+  if (!MASK_SHADER || !image || !mask || !previewSize.width || !previewSize.height) {
+    return null;
+  }
+
+  return (
+    <Fill>
+      <Shader source={MASK_SHADER}>
+        <ImageShader
+          image={image}
+          fit="fill"
+          rect={{ x: 0, y: 0, width: previewSize.width, height: previewSize.height }}
+        />
+        <ImageShader
+          image={mask}
+          fit="fill"
+          rect={{ x: 0, y: 0, width: previewSize.width, height: previewSize.height }}
+        />
+      </Shader>
+    </Fill>
+  );
+}
+
 export default function EditorScreen({ imageUri, onBack, theme }) {
   const [activeTool, setActiveTool] = useState('Depth');
   const [depthState, setDepthState] = useState('idle');
@@ -185,9 +545,17 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
 
       if (runId !== depthRunId.current) return;
 
-      // Segmentation is intentionally disabled until a reliable service is connected.
-      // Do not fabricate depth bands: the real layer masks will be added here.
-      setLayers([]);
+      const segmentationResult = await callSegmentation(imageUri);
+
+      if (runId !== depthRunId.current) return;
+
+      const detectedLayers = buildLayers(segmentationResult);
+
+      if (!detectedLayers.length) {
+        throw new Error('No usable layers were detected');
+      }
+
+      setLayers(detectedLayers);
       setDepthUri(depthResult);
       setDepthState('ready');
     } catch (error) {
@@ -276,6 +644,21 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
             ) : null}
           </Canvas>
 
+
+          {depthState === 'ready' && layers.some((layer) => layer.above) && (
+            <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+              {layers
+                .filter((layer) => layer.above)
+                .map((layer) => (
+                  <MaskedLayer
+                    key={layer.id}
+                    layer={layer}
+                    image={image}
+                    previewSize={previewSize}
+                  />
+                ))}
+            </Canvas>
+          )}
           <View
             {...clockPan.panHandlers}
             style={[
