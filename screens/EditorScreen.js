@@ -77,7 +77,7 @@ async function callDepth(imageUri, attempt = 0) {
 
   if (!uploadResponse.ok) {
     if (attempt < 2) return callDepth(imageUri, attempt + 1);
-    throw new Error('Depth upload failed');
+    throw new Error('Depth upload failed (' + uploadResponse.status + ')');
   }
 
   const uploaded = await uploadResponse.json();
@@ -92,6 +92,7 @@ async function callDepth(imageUri, attempt = 0) {
   const fileData = {
     path,
     meta: { _type: 'gradio.FileData' },
+    orig_name: 'zharph-depth.jpg',
   };
 
   const callResponse = await fetch(DEPTH_API + '/gradio_api/call/on_submit', {
@@ -102,41 +103,84 @@ async function callDepth(imageUri, attempt = 0) {
 
   if (!callResponse.ok) {
     if (attempt < 2) return callDepth(imageUri, attempt + 1);
-    throw new Error('Depth request failed');
+    throw new Error('Depth request failed (' + callResponse.status + ')');
   }
 
   const { event_id: eventId } = await callResponse.json();
-  const resultResponse = await fetch(
-    DEPTH_API + '/gradio_api/call/on_submit/' + eventId,
-  );
-
-  if (!resultResponse.ok) {
+  if (!eventId) {
     if (attempt < 2) return callDepth(imageUri, attempt + 1);
-    throw new Error('Depth result failed');
+    throw new Error('Depth queue did not return an event id');
   }
 
-  const stream = await resultResponse.text();
-  const events = stream.split(/\\n\\n+/);
-  const completeEvent = events.find((event) =>
-    /(^|\\n)event:\\s*complete\\s*(\\n|$)/.test(event),
-  );
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 150000);
 
-  if (!completeEvent) {
+  try {
+    const response = await fetch(
+      DEPTH_API + '/gradio_api/call/on_submit/' + eventId,
+      { signal: controller.signal },
+    );
+
+    if (!response.ok) {
+      throw new Error('Depth stream failed (' + response.status + ')');
+    }
+
+    const reader = response.body?.getReader?.();
+    if (!reader) throw new Error('Depth stream unavailable');
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let eventType = '';
+    let resultData = null;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const chunks = buffer.split(/\n\n/);
+      buffer = chunks.pop() || '';
+
+      for (const chunk of chunks) {
+        const lines = chunk.split('\n');
+        const typeLine = lines.find((line) => line.startsWith('event:'));
+        const dataLine = lines.find((line) => line.startsWith('data:'));
+
+        if (typeLine) eventType = typeLine.slice(6).trim();
+        if (!dataLine) continue;
+
+        let payload;
+        try {
+          payload = JSON.parse(dataLine.slice(5).trim());
+        } catch {
+          continue;
+        }
+
+        if (eventType === 'error') {
+          const message = Array.isArray(payload)
+            ? payload[0]
+            : payload?.message || payload?.error || 'Depth model error';
+          throw new Error(String(message));
+        }
+
+        if (eventType === 'complete') {
+          resultData = payload;
+          break;
+        }
+      }
+
+      if (resultData) break;
+    }
+
+    if (!resultData) throw new Error('Depth ended without a result');
+
+    return getDepthPath(resultData?.[1]);
+  } catch (error) {
     if (attempt < 2) return callDepth(imageUri, attempt + 1);
-    throw new Error('Depth result incomplete');
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const dataLine = completeEvent
-    .split('\\n')
-    .find((line) => line.startsWith('data:'));
-
-  if (!dataLine) {
-    if (attempt < 2) return callDepth(imageUri, attempt + 1);
-    throw new Error('Depth result data missing');
-  }
-
-  const result = JSON.parse(dataLine.slice(5).trim());
-  return getDepthPath(result?.[1]);
 }
 
 function DepthLayer({ image, depth, layer, width, height }) {
