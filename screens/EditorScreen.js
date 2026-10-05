@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Animated, PanResponder, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
+const DEPTH_API = 'https://depth-anything-depth-anything-v2.hf.space';
 const TOOLS = [
   ['layers-outline', 'Depth'],
   ['blur', 'Blur'],
@@ -9,9 +10,54 @@ const TOOLS = [
   ['tune-variant', 'Adjust'],
 ];
 
+async function runAIDepth(imageUri) {
+  const form = new FormData();
+  form.append('files', { uri: imageUri, name: 'zharph-depth.jpg', type: 'image/jpeg' });
+
+  const uploadResponse = await fetch(DEPTH_API + '/gradio_api/upload', {
+    method: 'POST',
+    body: form,
+  });
+
+  if (!uploadResponse.ok) throw new Error('Depth upload failed');
+
+  const uploaded = await uploadResponse.json();
+  const uploadedPath = Array.isArray(uploaded) ? uploaded[0] : uploaded;
+
+  const callResponse = await fetch(DEPTH_API + '/gradio_api/call/on_submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data: [{ path: uploadedPath }] }),
+  });
+
+  if (!callResponse.ok) throw new Error('Depth request failed');
+
+  const { event_id: eventId } = await callResponse.json();
+  const resultResponse = await fetch(DEPTH_API + '/gradio_api/call/on_submit/' + eventId);
+
+  if (!resultResponse.ok) throw new Error('Depth result failed');
+
+  const streamText = await resultResponse.text();
+  const completeMatch = streamText.match(/event: complete\s+data: (.+)/);
+
+  if (!completeMatch) throw new Error('Depth result was incomplete');
+
+  const result = JSON.parse(completeMatch[1]);
+  const grayFile = result && result[1];
+  const grayPath = typeof grayFile === 'string' ? grayFile : grayFile && grayFile.path;
+
+  if (!grayPath) throw new Error('Depth map was not returned');
+
+  return grayPath.startsWith('http')
+    ? grayPath
+    : DEPTH_API + '/gradio_api/file=' + encodeURIComponent(grayPath);
+}
+
 export default function EditorScreen({ imageUri, onBack, theme }) {
   const [activeTool, setActiveTool] = useState('Depth');
   const [depthState, setDepthState] = useState('idle');
+  const [depthImageUri, setDepthImageUri] = useState(null);
+  const [depthError, setDepthError] = useState(false);
   const [clockLayer, setClockLayer] = useState('top');
   const clockPosition = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const depthProgress = useRef(new Animated.Value(0)).current;
@@ -19,16 +65,20 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
 
   depthStateRef.current = depthState;
 
-  const runStandardDepth = () => {
+  const runDepth = async () => {
     if (depthState === 'analyzing') return;
 
     setActiveTool('Depth');
     setDepthState('analyzing');
+    setDepthImageUri(null);
+    setDepthError(false);
     setClockLayer('top');
     clockPosition.setValue({ x: 0, y: 0 });
     depthProgress.setValue(0);
 
-    setTimeout(() => {
+    try {
+      const resultUri = await runAIDepth(imageUri);
+      setDepthImageUri(resultUri);
       setDepthState('ready');
       Animated.spring(depthProgress, {
         toValue: 1,
@@ -36,12 +86,15 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
         speed: 12,
         bounciness: 5,
       }).start();
-    }, 900);
+    } catch (error) {
+      setDepthState('idle');
+      setDepthError(true);
+    }
   };
 
   const depthScale = depthProgress.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 1.035],
+    outputRange: [1, 1.015],
   });
 
   const clockPan = useRef(
@@ -60,11 +113,6 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
     }),
   ).current;
 
-  const depthShift = depthProgress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -4],
-  });
-
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.primaryContainer }]}>
       <View style={styles.header}>
@@ -82,37 +130,23 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
           <Animated.Image
             pointerEvents="none"
             source={{ uri: imageUri }}
-            style={[
-              styles.previewImage,
-              {
-                transform: [
-                  { translateX: depthShift },
-                  { scale: depthScale },
-                ],
-              },
-            ]}
+            style={[styles.previewImage, { transform: [{ scale: depthScale }] }]}
           />
 
-          {depthState === 'ready' && (
-            <Animated.View
+          {depthImageUri && (
+            <Animated.Image
               pointerEvents="none"
+              source={{ uri: depthImageUri }}
+              resizeMode="stretch"
               style={[
-                styles.depthGlow,
+                styles.depthPreview,
                 {
-                  borderColor: theme.primary,
                   opacity: depthProgress.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [0, 0.28],
+                    outputRange: [0, 0.52],
                   }),
                 },
               ]}
-            />
-          )}
-
-          {depthState === 'ready' && (
-            <View
-              pointerEvents="none"
-              style={[styles.depthLayer, { backgroundColor: theme.background }]}
             />
           )}
 
@@ -131,12 +165,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
               },
             ]}
           >
-            <MaterialCommunityIcons
-              name="drag-vertical"
-              size={18}
-              color={theme.primary}
-              style={styles.dragIcon}
-            />
+            <MaterialCommunityIcons name="drag-vertical" size={18} color={theme.primary} style={styles.dragIcon} />
             <Text style={styles.clock}>09:41</Text>
             <Text style={styles.date}>Monday, October 5</Text>
           </Animated.View>
@@ -144,10 +173,15 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
           {depthState === 'analyzing' && (
             <View style={[styles.analyzing, { backgroundColor: theme.surface }]}>
               <MaterialCommunityIcons name="layers-search-outline" size={20} color={theme.primary} />
-              <Text style={[styles.analyzingText, { color: theme.onSurface }]}>
-                Analyzing depth...
-              </Text>
+              <Text style={[styles.analyzingText, { color: theme.onSurface }]}>Analyzing depth...</Text>
             </View>
+          )}
+
+          {depthError && (
+            <Pressable onPress={runDepth} style={[styles.errorBadge, { backgroundColor: theme.surface }]}>
+              <MaterialCommunityIcons name="alert-circle-outline" size={18} color={theme.primary} />
+              <Text style={[styles.analyzingText, { color: theme.onSurface }]}>Depth failed · Retry</Text>
+            </Pressable>
           )}
         </View>
       </View>
@@ -160,19 +194,13 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
             return (
               <Pressable
                 key={label}
-                onPress={label === 'Depth' ? runStandardDepth : () => setActiveTool(label)}
+                onPress={label === 'Depth' ? runDepth : () => setActiveTool(label)}
                 style={styles.tool}
               >
                 <View style={[styles.toolIcon, { backgroundColor: selected ? theme.primary : theme.surface }]}>
-                  <MaterialCommunityIcons
-                    name={icon}
-                    size={23}
-                    color={selected ? theme.onPrimary : theme.onSurfaceVariant}
-                  />
+                  <MaterialCommunityIcons name={icon} size={23} color={selected ? theme.onPrimary : theme.onSurfaceVariant} />
                 </View>
-                <Text style={[styles.toolLabel, { color: selected ? theme.primary : theme.onSurfaceVariant }]}>
-                  {label}
-                </Text>
+                <Text style={[styles.toolLabel, { color: selected ? theme.primary : theme.onSurfaceVariant }]}>{label}</Text>
               </Pressable>
             );
           })}
@@ -183,10 +211,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    paddingTop: 28,
-  },
+  safe: { flex: 1, paddingTop: 28 },
   header: {
     height: 66,
     paddingHorizontal: 12,
@@ -194,20 +219,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  button: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  button: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 19, fontWeight: '700' },
-  previewArea: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
+  previewArea: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
   preview: {
     width: '100%',
     maxWidth: 360,
@@ -219,30 +233,8 @@ const styles = StyleSheet.create({
     shadowRadius: 22,
     shadowOffset: { width: 0, height: 12 },
   },
-  previewImage: {
-    width: '100%',
-    height: '100%',
-  },
-  depthLayer: {
-    position: 'absolute',
-    left: '32%',
-    top: 0,
-    height: '38%',
-    right: 0,
-    opacity: 0.34,
-    zIndex: 2,
-    borderBottomLeftRadius: 80,
-    borderBottomRightRadius: 80,
-  },
-  depthGlow: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    right: 10,
-    bottom: 10,
-    borderWidth: 2,
-    borderRadius: 28,
-  },
+  previewImage: { width: '100%', height: '100%' },
+  depthPreview: { position: 'absolute', left: 0, top: 0, width: '100%', height: '100%' },
   clockWidget: {
     position: 'absolute',
     top: 42,
@@ -256,23 +248,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     elevation: 6,
   },
-  dragIcon: {
-    position: 'absolute',
-    right: 12,
-    top: 10,
-  },
-  clock: {
-    color: '#fff',
-    fontSize: 52,
-    fontWeight: '300',
-    letterSpacing: -2,
-  },
-  date: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-    marginTop: 2,
-  },
+  dragIcon: { position: 'absolute', right: 12, top: 10 },
+  clock: { color: '#fff', fontSize: 52, fontWeight: '300', letterSpacing: -2 },
+  date: { color: '#fff', fontSize: 14, fontWeight: '500', marginTop: 2 },
   analyzing: {
     position: 'absolute',
     left: 18,
@@ -286,39 +264,24 @@ const styles = StyleSheet.create({
     gap: 8,
     elevation: 5,
   },
-  analyzingText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  toolsArea: {
-    paddingTop: 12,
-    paddingBottom: 34,
-    marginBottom: 18,
-  },
-  heading: {
-    paddingHorizontal: 20,
-    fontSize: 17,
-    fontWeight: '700',
-    marginBottom: 10,
-  },
-  tools: {
-    paddingHorizontal: 18,
-    gap: 14,
-  },
-  tool: {
-    width: 68,
-    alignItems: 'center',
-  },
-  toolIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
+  errorBadge: {
+    position: 'absolute',
+    left: 18,
+    right: 18,
+    bottom: 18,
+    height: 48,
+    borderRadius: 24,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    elevation: 5,
   },
-  toolLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 6,
-  },
+  analyzingText: { fontSize: 13, fontWeight: '600' },
+  toolsArea: { paddingTop: 12, paddingBottom: 34, marginBottom: 18 },
+  heading: { paddingHorizontal: 20, fontSize: 17, fontWeight: '700', marginBottom: 10 },
+  tools: { paddingHorizontal: 18, gap: 14 },
+  tool: { width: 68, alignItems: 'center' },
+  toolIcon: { width: 52, height: 52, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  toolLabel: { fontSize: 11, fontWeight: '600', marginTop: 6 },
 });
