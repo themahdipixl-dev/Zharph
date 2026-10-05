@@ -25,10 +25,15 @@ async function callSpace(api, endpoint, imageUri, name) {
   const uploaded = await uploadResponse.json();
   const path = Array.isArray(uploaded) ? uploaded[0] : uploaded;
 
+  const fileData = {
+    path,
+    meta: { _type: 'gradio.FileData' },
+  };
+
   const callResponse = await fetch(api + '/gradio_api/call/' + endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ data: [{ path }] }),
+    body: JSON.stringify({ data: [fileData] }),
   });
   if (!callResponse.ok) throw new Error('Request failed');
 
@@ -37,10 +42,17 @@ async function callSpace(api, endpoint, imageUri, name) {
   if (!resultResponse.ok) throw new Error('Result failed');
 
   const stream = await resultResponse.text();
-  const match = stream.match(/event: complete\s+data: (.+)/);
-  if (!match) throw new Error('Incomplete result');
+  const events = stream.split(/\n\n+/);
+  const completeEvent = events.find((event) => /(^|\n)event:\s*complete\s*(\n|$)/.test(event));
+  if (!completeEvent) throw new Error('Incomplete result');
 
-  return JSON.parse(match[1]);
+  const dataLine = completeEvent
+    .split('\n')
+    .find((line) => line.startsWith('data:'));
+
+  if (!dataLine) throw new Error('Missing result data');
+
+  return JSON.parse(dataLine.slice(5).trim());
 }
 
 async function runAIDepth(imageUri) {
