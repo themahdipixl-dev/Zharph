@@ -209,12 +209,14 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
   const [activeTool, setActiveTool] = useState('Depth');
   const [depthState, setDepthState] = useState('idle');
   const [depthUri, setDepthUri] = useState(null);
+  const [depthMode, setDepthMode] = useState(false);
   const [depthError, setDepthError] = useState(false);
   const [depthErrorMessage, setDepthErrorMessage] = useState('');
   const [aboveLayers, setAboveLayers] = useState([]);
   const [selectedLayer, setSelectedLayer] = useState(null);
   const [previewSize, setPreviewSize] = useState({ width: 0, height: 0 });
-  const clockPosition = useRef({ x: 0, y: 0 }).current;
+  const [clockPosition, setClockPosition] = useState({ x: 0, y: 0 });
+  const clockStart = useRef({ x: 0, y: 0 });
 
   const image = useImage(imageUri);
   const depth = useImage(depthUri);
@@ -223,14 +225,14 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
     if (depthState === 'analyzing') return;
 
     setActiveTool('Depth');
+    setDepthMode(true);
     setDepthState('analyzing');
     setDepthUri(null);
     setDepthError(false);
     setDepthErrorMessage('');
     setAboveLayers([]);
     setSelectedLayer(null);
-    clockPosition.x = 0;
-    clockPosition.y = 0;
+    setClockPosition({ x: 0, y: 0 });
 
     try {
       const result = await callDepth(imageUri);
@@ -241,6 +243,24 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
       setDepthError(true);
       setDepthErrorMessage(error?.message || 'Depth analysis failed');
     }
+  };
+
+  const cancelDepth = () => {
+    setDepthMode(false);
+    setDepthState('idle');
+    setDepthUri(null);
+    setAboveLayers([]);
+    setSelectedLayer(null);
+    setDepthError(false);
+    setDepthErrorMessage('');
+    setClockPosition({ x: 0, y: 0 });
+  };
+
+  const confirmDepth = () => {
+    setDepthMode(false);
+    setDepthState('idle');
+    setDepthError(false);
+    setDepthErrorMessage('');
   };
 
   const toggleLayer = (id) => {
@@ -254,14 +274,18 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
 
   const clockPan = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => depthState === 'ready',
-      onStartShouldSetPanResponderCapture: () => depthState === 'ready',
-      onMoveShouldSetPanResponder: () => depthState === 'ready',
-      onMoveShouldSetPanResponderCapture: () => depthState === 'ready',
-      onPanResponderGrant: () => {},
+      onStartShouldSetPanResponder: () => depthMode && depthState === 'ready',
+      onStartShouldSetPanResponderCapture: () => depthMode && depthState === 'ready',
+      onMoveShouldSetPanResponder: () => depthMode && depthState === 'ready',
+      onMoveShouldSetPanResponderCapture: () => depthMode && depthState === 'ready',
+      onPanResponderGrant: () => {
+        clockStart.current = clockPosition;
+      },
       onPanResponderMove: (_, gesture) => {
-        clockPosition.x = gesture.dx;
-        clockPosition.y = gesture.dy;
+        setClockPosition({
+          x: clockStart.current.x + gesture.dx,
+          y: clockStart.current.y + gesture.dy,
+        });
       },
     }),
   ).current;
@@ -301,13 +325,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
           }}
         >
           <Canvas style={StyleSheet.absoluteFill}>
-            {image && depth ? (
-              <>
-                {renderLayers(false)}
-                <Fill color="transparent" />
-                {renderLayers(true)}
-              </>
-            ) : image ? (
+            {image ? (
               <Fill>
                 <ImageShader
                   image={image}
@@ -316,6 +334,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
                 />
               </Fill>
             ) : null}
+            {image && depth && aboveLayers.length > 0 && renderLayers(true)}
           </Canvas>
 
           <View
@@ -374,14 +393,8 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
         </View>
       </View>
 
-      {depthState === 'ready' && (
-        <View style={styles.layerPanel}>
-          <Text style={[styles.heading, { color: theme.onSurface }]}>
-            Clock depth
-          </Text>
-          <Text style={[styles.subheading, { color: theme.onSurfaceVariant }]}>
-            Tap layers to put them above or below the clock
-          </Text>
+      {depthMode ? (
+        <View style={styles.depthControls}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -394,12 +407,14 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
               return (
                 <Pressable
                   key={layer.id}
+                  disabled={depthState !== 'ready'}
                   onPress={() => toggleLayer(layer.id)}
                   style={[
                     styles.layerChip,
                     {
                       backgroundColor: above ? theme.primaryContainer : theme.surface,
                       borderColor: selected ? theme.primary : theme.outline,
+                      opacity: depthState === 'ready' ? 1 : 0.55,
                     },
                   ]}
                 >
@@ -408,28 +423,30 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
                     size={19}
                     color={above ? theme.primary : theme.onSurfaceVariant}
                   />
-                  <Text
-                    style={[
-                      styles.layerLabel,
-                      { color: above ? theme.primary : theme.onSurfaceVariant },
-                    ]}
-                  >
+                  <Text style={[styles.layerLabel, { color: above ? theme.primary : theme.onSurfaceVariant }]}>
                     {layer.label}
                   </Text>
-                  <Text
-                    style={[
-                      styles.layerState,
-                      { color: above ? theme.primary : theme.onSurfaceVariant },
-                    ]}
-                  >
-                    {above ? 'Above' : 'Below'}
+                  <Text style={[styles.layerState, { color: above ? theme.primary : theme.onSurfaceVariant }]}>
+                    {depthState === 'ready' ? (above ? 'Above' : 'Below') : 'Analyzing'}
                   </Text>
                 </Pressable>
               );
             })}
           </ScrollView>
+
+          <View style={styles.depthActions}>
+            <Pressable onPress={cancelDepth} style={[styles.depthAction, { backgroundColor: theme.surface }]}>
+              <MaterialCommunityIcons name="close" size={22} color={theme.onSurfaceVariant} />
+              <Text style={[styles.depthActionText, { color: theme.onSurfaceVariant }]}>Cancel</Text>
+            </Pressable>
+            <Pressable onPress={confirmDepth} disabled={depthState !== 'ready'} style={[styles.depthAction, { backgroundColor: theme.primary, opacity: depthState === 'ready' ? 1 : 0.45 }]}>
+              <MaterialCommunityIcons name="check" size={22} color={theme.onPrimary} />
+              <Text style={[styles.depthActionText, { color: theme.onPrimary }]}>Done</Text>
+            </Pressable>
+          </View>
         </View>
-      )}
+      ) : (
+        <View style={styles.toolsArea}>
 
       <View style={styles.toolsArea}>
         <Text style={[styles.heading, { color: theme.onSurface }]}>Customize</Text>
@@ -471,7 +488,8 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
             );
           })}
         </ScrollView>
-      </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -553,7 +571,29 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   analyzingText: { fontSize: 13, fontWeight: '600' },
-  layerPanel: { paddingTop: 4, paddingBottom: 10 },
+  depthControls: {
+    paddingTop: 8,
+    paddingBottom: 18,
+  },
+  depthActions: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 18,
+    marginTop: 10,
+  },
+  depthAction: {
+    flex: 1,
+    height: 48,
+    borderRadius: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  depthActionText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
   heading: {
     paddingHorizontal: 20,
     fontSize: 17,
