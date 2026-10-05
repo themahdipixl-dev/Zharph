@@ -1,7 +1,0 @@
-{
-  "expo":{"name":"Zharph","slug":"zharph","version":"1.0.0","orientation":"portrait","userInterfaceStyle":"dark",
-    "android":{"package":"com.themahdipixl.zharph"},
-    "ios":{"supportsTablet":true},
-    "plugins":[["expo-image-picker",{"photosPermission":"Zharph needs access to your photos to create depth wallpapers.","cameraPermission":false,"microphonePermission":false}]]
-  }
-}
