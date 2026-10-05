@@ -15,21 +15,21 @@ import { StatusBar } from 'expo-status-bar';
 
 const { width } = Dimensions.get('window');
 const PADDING = 18;
-const GAP = 9;
+const GAP = 10;
 const CARD_WIDTH = (width - PADDING * 2 - GAP * 2) / 3;
 
 const TABS = ['All', 'Nature', 'Abstract', 'Architecture'];
 
 const DEFAULT_WALLPAPERS = [
-  { id: '1', title: 'Aurora', category: 'Nature', colors: ['#405A63', '#11191D'], icon: '✦' },
-  { id: '2', title: 'Summit', category: 'Nature', colors: ['#71808A', '#202B31'], icon: '⌁' },
-  { id: '3', title: 'Lunar', category: 'Abstract', colors: ['#4A4750', '#141419'], icon: '○' },
-  { id: '4', title: 'Tide', category: 'Nature', colors: ['#397181', '#102A31'], icon: '≈' },
-  { id: '5', title: 'Noir', category: 'Abstract', colors: ['#56515B', '#17151A'], icon: '◐' },
-  { id: '6', title: 'Haze', category: 'Abstract', colors: ['#7A7B78', '#292B2B'], icon: '◌' },
-  { id: '7', title: 'Dune', category: 'Nature', colors: ['#806B58', '#2B211A'], icon: '◇' },
-  { id: '8', title: 'Pine', category: 'Nature', colors: ['#486252', '#14201A'], icon: '♧' },
-  { id: '9', title: 'Grid', category: 'Architecture', colors: ['#59636A', '#1C2226'], icon: '＋' },
+  { id: '1', title: 'Aurora', category: 'Nature', colors: ['#536D73', '#182326'], icon: '✦' },
+  { id: '2', title: 'Summit', category: 'Nature', colors: ['#78878E', '#29353A'], icon: '⌁' },
+  { id: '3', title: 'Lunar', category: 'Abstract', colors: ['#57545E', '#1D1B22'], icon: '○' },
+  { id: '4', title: 'Tide', category: 'Nature', colors: ['#467D8A', '#172F35'], icon: '≈' },
+  { id: '5', title: 'Noir', category: 'Abstract', colors: ['#655F69', '#211F25'], icon: '◐' },
+  { id: '6', title: 'Haze', category: 'Abstract', colors: ['#838481', '#343535'], icon: '◌' },
+  { id: '7', title: 'Dune', category: 'Nature', colors: ['#88715D', '#35281E'], icon: '◇' },
+  { id: '8', title: 'Pine', category: 'Nature', colors: ['#526E5B', '#1B2B22'], icon: '♧' },
+  { id: '9', title: 'Grid', category: 'Architecture', colors: ['#69747A', '#252D31'], icon: '＋' },
 ];
 
 export default function App() {
@@ -77,50 +77,58 @@ export default function App() {
               <Text style={styles.kicker}>ZHARPH</Text>
               <Text style={styles.title}>Find your depth.</Text>
             </View>
-            <Pressable style={styles.headerButton} onPress={pickWallpaper}>
-              <Text style={styles.headerButtonText}>＋</Text>
+
+            <Pressable onPress={pickWallpaper} style={styles.neoButton}>
+              <View style={styles.neoButtonHighlight} />
+              <Text style={styles.headerPlus}>＋</Text>
             </Pressable>
           </View>
 
           <Text style={styles.intro}>
-            Wallpapers designed to become something deeper.
+            A softer way to make your screen feel deeper.
           </Text>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.tabs}
-          >
-            {TABS.map((tab) => {
-              const active = tab === activeTab;
-              return (
-                <Pressable
-                  key={tab}
-                  onPress={() => setActiveTab(tab)}
-                  style={styles.tab}
-                >
-                  <Text style={[styles.tabText, active && styles.tabTextActive]}>
-                    {tab}
-                  </Text>
-                  {active && <View style={styles.tabLine} />}
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          <View style={styles.tabsTrack}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.tabs}
+            >
+              {TABS.map((tab) => {
+                const active = tab === activeTab;
+                return (
+                  <Pressable
+                    key={tab}
+                    onPress={() => setActiveTab(tab)}
+                    style={[styles.tab, active && styles.tabActive]}
+                  >
+                    <Text style={[styles.tabText, active && styles.tabTextActive]}>
+                      {tab}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
 
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>
-              {activeTab === 'All' ? 'Curated wallpapers' : activeTab}
+              {activeTab === 'All' ? 'Wallpapers' : activeTab}
             </Text>
-            <Text style={styles.sectionCount}>{wallpapers.length} works</Text>
+            <Text style={styles.sectionCount}>{wallpapers.length} available</Text>
           </View>
 
           <View style={styles.grid}>
-            <Pressable style={styles.addCard} onPress={pickWallpaper}>
-              <View style={styles.addInner}>
-                <Text style={styles.addPlus}>＋</Text>
-                <Text style={styles.addTitle}>Your photo</Text>
-                <Text style={styles.addCaption}>Create from gallery</Text>
+            <Pressable onPress={pickWallpaper} style={styles.cardShadow}>
+              <View style={[styles.neoCard, styles.addCard]}>
+                <View style={styles.addHighlight} />
+                <View style={styles.addInner}>
+                  <View style={styles.plusWell}>
+                    <Text style={styles.addPlus}>＋</Text>
+                  </View>
+                  <Text style={styles.addTitle}>Your photo</Text>
+                  <Text style={styles.addCaption}>Choose from gallery</Text>
+                </View>
               </View>
             </Pressable>
 
@@ -128,25 +136,29 @@ export default function App() {
               <Pressable
                 key={wallpaper.id}
                 onPress={() => openDefaultWallpaper(wallpaper)}
-                style={styles.card}
+                style={styles.cardShadow}
               >
-                <LinearGradient colors={wallpaper.colors} style={styles.cardArt}>
-                  <Text style={styles.artIcon}>{wallpaper.icon}</Text>
-                  <View style={styles.cardBottom}>
-                    <Text style={styles.cardTitle}>{wallpaper.title}</Text>
-                    <Text style={styles.cardCategory}>{wallpaper.category}</Text>
-                  </View>
-                </LinearGradient>
+                <View style={styles.neoCard}>
+                  <LinearGradient colors={wallpaper.colors} style={styles.cardArt}>
+                    <Text style={styles.artIcon}>{wallpaper.icon}</Text>
+                    <View style={styles.cardBottom}>
+                      <Text style={styles.cardTitle}>{wallpaper.title}</Text>
+                      <Text style={styles.cardCategory}>{wallpaper.category}</Text>
+                    </View>
+                  </LinearGradient>
+                </View>
               </Pressable>
             ))}
           </View>
         </ScrollView>
 
-        <View style={styles.bottomNav}>
-          <NavButton icon="⌂" label="Explore" active />
-          <NavButton icon="◒" label="Create" />
-          <NavButton icon="♡" label="Saved" />
-          <NavButton icon="⋯" label="More" />
+        <View style={styles.navShadow}>
+          <View style={styles.bottomNav}>
+            <NavButton icon="⌂" label="Home" active />
+            <NavButton icon="◒" label="Create" />
+            <NavButton icon="♡" label="Saved" />
+            <NavButton icon="⋯" label="More" />
+          </View>
         </View>
       </SafeAreaView>
 
@@ -166,7 +178,8 @@ export default function App() {
 
 function NavButton({ icon, label, active }) {
   return (
-    <Pressable style={styles.navButton}>
+    <Pressable style={[styles.navButton, active && styles.navButtonActive]}>
+      {active && <View style={styles.navActiveHighlight} />}
       <Text style={[styles.navIcon, active && styles.navIconActive]}>{icon}</Text>
       <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
     </Pressable>
@@ -177,60 +190,69 @@ function EditorScreen({ imageUri, wallpaper, onClose }) {
   return (
     <View style={styles.editorOverlay}>
       <StatusBar style="light" />
+
       <SafeAreaView style={styles.editorSafe}>
         <View style={styles.editorHeader}>
           <Pressable onPress={onClose} style={styles.backButton}>
             <Text style={styles.backText}>‹</Text>
           </Pressable>
-          <View>
-            <Text style={styles.editorKicker}>EDITOR</Text>
+
+          <View style={styles.editorHeaderCenter}>
+            <Text style={styles.editorKicker}>EDIT</Text>
             <Text style={styles.editorTitle}>{wallpaper.title}</Text>
           </View>
+
           <View style={styles.headerSpacer} />
         </View>
 
         <View style={styles.editorPreviewWrap}>
-          <View style={styles.editorPreview}>
-            {imageUri ? (
-              <Image source={{ uri: imageUri }} style={styles.editorImage} resizeMode="cover" />
-            ) : (
-              <LinearGradient colors={wallpaper.colors} style={styles.editorImage}>
-                <Text style={styles.editorArt}>{wallpaper.icon}</Text>
-              </LinearGradient>
-            )}
+          <View style={styles.previewShadow}>
+            <View style={styles.editorPreview}>
+              {imageUri ? (
+                <Image source={{ uri: imageUri }} style={styles.editorImage} resizeMode="cover" />
+              ) : (
+                <LinearGradient colors={wallpaper.colors} style={styles.editorImage}>
+                  <Text style={styles.editorArt}>{wallpaper.icon}</Text>
+                </LinearGradient>
+              )}
 
-            <LinearGradient
-              pointerEvents="none"
-              colors={['rgba(0,0,0,0.08)', 'transparent', 'rgba(0,0,0,0.45)']}
-              style={StyleSheet.absoluteFill}
-            />
+              <LinearGradient
+                pointerEvents="none"
+                colors={['rgba(255,255,255,0.05)', 'transparent', 'rgba(0,0,0,0.42)']}
+                style={StyleSheet.absoluteFill}
+              />
 
-            <View style={styles.editorClock}>
-              <Text style={styles.editorTime}>10:42</Text>
-              <Text style={styles.editorDate}>Monday, October 5</Text>
+              <View style={styles.editorClock}>
+                <Text style={styles.editorTime}>10:42</Text>
+                <Text style={styles.editorDate}>Monday, October 5</Text>
+              </View>
             </View>
           </View>
         </View>
 
-        <View style={styles.editorPanel}>
-          <View style={styles.panelHeading}>
-            <View>
-              <Text style={styles.panelKicker}>LAYOUT</Text>
-              <Text style={styles.panelTitle}>Make it yours.</Text>
+        <View style={styles.editorPanelShadow}>
+          <View style={styles.editorPanel}>
+            <View style={styles.panelHeading}>
+              <View>
+                <Text style={styles.panelKicker}>DEPTH CONTROLS</Text>
+                <Text style={styles.panelTitle}>Shape the layer.</Text>
+              </View>
+              <Text style={styles.panelStep}>01</Text>
             </View>
-            <Text style={styles.panelStep}>01</Text>
-          </View>
 
-          <View style={styles.controlRow}>
-            <ControlChip label="Depth" active />
-            <ControlChip label="Position" />
-            <ControlChip label="Clock" />
-          </View>
+            <View style={styles.controlRow}>
+              <ControlChip label="Depth" active />
+              <ControlChip label="Position" />
+              <ControlChip label="Clock" />
+            </View>
 
-          <Pressable style={styles.continueButton}>
-            <Text style={styles.continueText}>Continue</Text>
-            <Text style={styles.continueArrow}>→</Text>
-          </Pressable>
+            <Pressable style={styles.continueShadow}>
+              <View style={styles.continueButton}>
+                <Text style={styles.continueText}>Continue</Text>
+                <Text style={styles.continueArrow}>→</Text>
+              </View>
+            </Pressable>
+          </View>
         </View>
       </SafeAreaView>
     </View>
@@ -239,8 +261,10 @@ function EditorScreen({ imageUri, wallpaper, onClose }) {
 
 function ControlChip({ label, active }) {
   return (
-    <Pressable style={[styles.controlChip, active && styles.controlChipActive]}>
-      <Text style={[styles.controlLabel, active && styles.controlLabelActive]}>{label}</Text>
+    <Pressable style={styles.chipShadow}>
+      <View style={[styles.controlChip, active && styles.controlChipActive]}>
+        <Text style={[styles.controlLabel, active && styles.controlLabelActive]}>{label}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -248,7 +272,7 @@ function ControlChip({ label, active }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#0A0A0A',
+    backgroundColor: '#202426',
   },
   safe: {
     flex: 1,
@@ -262,82 +286,107 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingTop: 8,
+    paddingTop: 9,
   },
   kicker: {
-    color: '#7E8A8F',
+    color: '#899296',
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 3,
     marginBottom: 8,
   },
   title: {
-    color: '#F4F3EF',
-    fontSize: 34,
-    lineHeight: 38,
+    color: '#E8ECEC',
+    fontSize: 32,
+    lineHeight: 37,
     fontWeight: '700',
-    letterSpacing: -1.4,
+    letterSpacing: -1.1,
   },
   intro: {
-    color: '#777878',
+    color: '#899194',
     fontSize: 13,
     lineHeight: 19,
-    maxWidth: 300,
-    marginTop: 12,
+    maxWidth: 310,
+    marginTop: 11,
   },
-  headerButton: {
-    width: 42,
-    height: 42,
+  neoButton: {
+    width: 45,
+    height: 45,
+    borderRadius: 14,
+    backgroundColor: '#202426',
     alignItems: 'center',
     justifyContent: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#4E5355',
+    elevation: 8,
+    shadowColor: '#090A0B',
+    shadowOffset: { width: 5, height: 5 },
+    shadowOpacity: 0.8,
+    shadowRadius: 7,
   },
-  headerButtonText: {
-    color: '#F4F3EF',
+  neoButtonHighlight: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 14,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+  },
+  headerPlus: {
+    color: '#DCE1E1',
     fontSize: 27,
     fontWeight: '300',
     marginTop: -2,
   },
+  tabsTrack: {
+    marginTop: 27,
+    marginBottom: 19,
+    borderRadius: 17,
+    backgroundColor: '#1B1F21',
+    padding: 5,
+    elevation: 5,
+    shadowColor: '#0B0D0E',
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+  },
   tabs: {
-    gap: 23,
-    paddingTop: 30,
-    paddingBottom: 17,
+    gap: 4,
   },
   tab: {
-    paddingVertical: 5,
-    position: 'relative',
+    height: 39,
+    paddingHorizontal: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabActive: {
+    backgroundColor: '#282E30',
+    elevation: 3,
+    shadowColor: '#0C0D0E',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.8,
+    shadowRadius: 3,
   },
   tabText: {
-    color: '#606263',
-    fontSize: 13,
-    fontWeight: '600',
+    color: '#697174',
+    fontSize: 12,
+    fontWeight: '650',
   },
   tabTextActive: {
-    color: '#F4F3EF',
-  },
-  tabLine: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 1,
-    backgroundColor: '#E7E5DE',
+    color: '#E3E8E8',
   },
   sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 13,
+    paddingHorizontal: 2,
   },
   sectionTitle: {
-    color: '#D8D7D1',
+    color: '#C9CECE',
     fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 0.2,
+    fontWeight: '700',
   },
   sectionCount: {
-    color: '#555758',
+    color: '#687174',
     fontSize: 10,
     fontWeight: '600',
   },
@@ -346,12 +395,68 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: GAP,
   },
-  card: {
+  cardShadow: {
     width: CARD_WIDTH,
     height: CARD_WIDTH * 1.48,
-    borderRadius: 4,
+    borderRadius: 16,
+    elevation: 8,
+    shadowColor: '#090B0C',
+    shadowOffset: { width: 6, height: 6 },
+    shadowOpacity: 0.85,
+    shadowRadius: 8,
+  },
+  neoCard: {
+    flex: 1,
+    borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: '#161717',
+    backgroundColor: '#24292B',
+  },
+  addCard: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.035)',
+  },
+  addHighlight: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 16,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    pointerEvents: 'none',
+  },
+  addInner: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  plusWell: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1E2224',
+    elevation: 4,
+    shadowColor: '#0A0B0C',
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+  },
+  addPlus: {
+    color: '#DCE1E1',
+    fontSize: 28,
+    fontWeight: '200',
+    marginTop: -2,
+  },
+  addTitle: {
+    color: '#C9CECE',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 10,
+  },
+  addCaption: {
+    color: '#697174',
+    fontSize: 8,
+    marginTop: 4,
   },
   cardArt: {
     flex: 1,
@@ -359,8 +464,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   artIcon: {
-    color: 'rgba(255,255,255,0.48)',
-    fontSize: 40,
+    color: 'rgba(255,255,255,0.46)',
+    fontSize: 38,
     fontWeight: '200',
   },
   cardBottom: {
@@ -370,7 +475,7 @@ const styles = StyleSheet.create({
     bottom: 9,
   },
   cardTitle: {
-    color: '#F4F3EF',
+    color: '#F0F3F3',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -379,74 +484,74 @@ const styles = StyleSheet.create({
     fontSize: 8,
     marginTop: 2,
   },
-  addCard: {
-    width: CARD_WIDTH,
-    height: CARD_WIDTH * 1.48,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#414445',
-    backgroundColor: '#0E0F0F',
-  },
-  addInner: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addPlus: {
-    color: '#D9D8D2',
-    fontSize: 28,
-    fontWeight: '200',
-  },
-  addTitle: {
-    color: '#D9D8D2',
-    fontSize: 11,
-    fontWeight: '700',
-    marginTop: 9,
-  },
-  addCaption: {
-    color: '#555758',
-    fontSize: 8,
-    marginTop: 3,
-  },
-  bottomNav: {
+  navShadow: {
     position: 'absolute',
     left: 18,
     right: 18,
     bottom: 10,
-    height: 58,
-    backgroundColor: '#111212',
-    borderTopWidth: 1,
-    borderTopColor: '#2C2E2F',
+    height: 60,
+    borderRadius: 19,
+    elevation: 10,
+    shadowColor: '#080A0B',
+    shadowOffset: { width: 6, height: 6 },
+    shadowOpacity: 0.9,
+    shadowRadius: 9,
+  },
+  bottomNav: {
+    flex: 1,
+    borderRadius: 19,
+    backgroundColor: '#24292B',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    overflow: 'hidden',
   },
   navButton: {
     flex: 1,
+    height: 50,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
+    borderRadius: 15,
+    marginHorizontal: 3,
+  },
+  navButtonActive: {
+    backgroundColor: '#1E2224',
+    elevation: 3,
+    shadowColor: '#0B0D0E',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.75,
+    shadowRadius: 3,
+  },
+  navActiveHighlight: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 15,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
   },
   navIcon: {
-    color: '#555758',
+    color: '#667073',
     fontSize: 18,
   },
   navIconActive: {
-    color: '#F4F3EF',
+    color: '#E6EBEB',
   },
   navLabel: {
-    color: '#555758',
+    color: '#626B6E',
     fontSize: 8,
-    fontWeight: '600',
+    fontWeight: '650',
   },
   navLabelActive: {
-    color: '#F4F3EF',
+    color: '#DDE2E2',
   },
   editorOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 10,
-    backgroundColor: '#0A0A0A',
+    backgroundColor: '#202426',
   },
   editorSafe: {
     flex: 1,
@@ -459,44 +564,65 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 43,
+    height: 43,
+    borderRadius: 14,
+    backgroundColor: '#202426',
+    alignItems: 'center',
     justifyContent: 'center',
+    elevation: 7,
+    shadowColor: '#090A0B',
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
   },
   backText: {
-    color: '#F4F3EF',
+    color: '#E7ECEC',
     fontSize: 35,
     fontWeight: '200',
     marginTop: -5,
   },
+  editorHeaderCenter: {
+    alignItems: 'center',
+  },
   editorKicker: {
-    color: '#666A6A',
+    color: '#727B7E',
     fontSize: 8,
     fontWeight: '800',
     letterSpacing: 2,
-    textAlign: 'center',
   },
   editorTitle: {
-    color: '#F4F3EF',
+    color: '#E5EAEA',
     fontSize: 15,
     fontWeight: '700',
     marginTop: 2,
-    textAlign: 'center',
   },
   headerSpacer: {
-    width: 40,
+    width: 43,
   },
   editorPreviewWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  editorPreview: {
+  previewShadow: {
     width: width - 58,
     height: Math.min(width * 1.42, 570),
-    borderRadius: 5,
+    borderRadius: 24,
+    elevation: 10,
+    shadowColor: '#080A0B',
+    shadowOffset: { width: 7, height: 7 },
+    shadowOpacity: 0.9,
+    shadowRadius: 10,
+  },
+  editorPreview: {
+    flex: 1,
+    borderRadius: 24,
     overflow: 'hidden',
-    backgroundColor: '#181818',
+    backgroundColor: '#282D2F',
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   editorImage: {
     ...StyleSheet.absoluteFillObject,
@@ -504,7 +630,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   editorArt: {
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(255,255,255,0.48)',
     fontSize: 80,
   },
   editorClock: {
@@ -527,11 +653,22 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 2,
   },
+  editorPanelShadow: {
+    borderRadius: 22,
+    marginBottom: 12,
+    elevation: 8,
+    shadowColor: '#090B0C',
+    shadowOffset: { width: 6, height: 6 },
+    shadowOpacity: 0.9,
+    shadowRadius: 8,
+  },
   editorPanel: {
-    paddingTop: 17,
-    paddingBottom: 12,
+    borderRadius: 22,
+    padding: 16,
+    backgroundColor: '#24292B',
     borderTopWidth: 1,
-    borderTopColor: '#2B2D2E',
+    borderLeftWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   panelHeading: {
     flexDirection: 'row',
@@ -539,19 +676,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   panelKicker: {
-    color: '#6B7070',
+    color: '#727B7E',
     fontSize: 8,
     fontWeight: '800',
     letterSpacing: 2,
   },
   panelTitle: {
-    color: '#E4E3DD',
+    color: '#E5EAEA',
     fontSize: 19,
     fontWeight: '700',
     marginTop: 3,
   },
   panelStep: {
-    color: '#555858',
+    color: '#687174',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -560,42 +697,61 @@ const styles = StyleSheet.create({
     gap: 7,
     marginTop: 13,
   },
-  controlChip: {
+  chipShadow: {
     flex: 1,
+    borderRadius: 14,
+    elevation: 4,
+    shadowColor: '#0A0B0C',
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+  },
+  controlChip: {
     height: 43,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#2C2F30',
-    backgroundColor: '#111212',
+    backgroundColor: '#202426',
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderColor: 'rgba(255,255,255,0.055)',
   },
   controlChipActive: {
-    borderColor: '#858B8B',
-    backgroundColor: '#1A1C1C',
+    backgroundColor: '#2B3133',
+    borderColor: 'rgba(255,255,255,0.13)',
   },
   controlLabel: {
-    color: '#626565',
+    color: '#727B7E',
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '650',
   },
   controlLabelActive: {
-    color: '#F4F3EF',
+    color: '#E8EDED',
+  },
+  continueShadow: {
+    marginTop: 10,
+    borderRadius: 14,
+    elevation: 5,
+    shadowColor: '#0A0B0C',
+    shadowOffset: { width: 4, height: 4 },
+    shadowOpacity: 0.8,
+    shadowRadius: 5,
   },
   continueButton: {
     height: 46,
-    marginTop: 9,
-    backgroundColor: '#E8E6DE',
+    borderRadius: 14,
+    backgroundColor: '#DDE3E2',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
   continueText: {
-    color: '#111212',
+    color: '#1B2021',
     fontSize: 12,
     fontWeight: '800',
   },
   continueArrow: {
-    color: '#111212',
+    color: '#1B2021',
     fontSize: 17,
     marginLeft: 10,
     marginTop: -1,
