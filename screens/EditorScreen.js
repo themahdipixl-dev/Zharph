@@ -13,16 +13,39 @@ import {
   Canvas,
   Fill,
   ImageShader,
-  Shader,
   Skia,
-  AlphaType,
-  ColorType,
   useImage,
 } from '@shopify/react-native-skia';
 
 const DEPTH_API = 'https://depth-anything-depth-anything-v2.hf.space';
-const SEGMENT_API = 'https://dense-captioning-medsam-inference.hf.space';
-const MAX_AI_LAYERS = 8;
+
+const TOOLS = [
+  ['layers-outline', 'Depth'],
+  ['blur', 'Blur'],
+  ['crop', 'Crop'],
+  ['tune-variant', 'Adjust'],
+];
+
+mport React, { useMemo, useRef, useState } from 'react';
+import {
+  PanResponder,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import {
+  Canvas,
+  Fill,
+  ImageShader,
+  Skia,
+  useImage,
+} from '@shopify/react-native-skia';
+
+const DEPTH_API = 'https://depth-anything-depth-anything-v2.hf.space';
 
 const TOOLS = [
   ['layers-outline', 'Depth'],
@@ -173,52 +196,6 @@ async function callDepth(imageUri, attempt = 0) {
   }
 }
 
-function maskToImage(mask) {
-  if (!mask?.length || !mask[0]?.length) return null;
-  const height = mask.length;
-  const width = mask[0].length;
-  const pixels = new Uint8Array(width * height);
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) pixels[y * width + x] = mask[y][x] ? 255 : 0;
-  }
-  return Skia.Image.MakeImage(
-    { width, height, alphaType: AlphaType.Opaque, colorType: ColorType.Alpha_8 },
-    Skia.Data.fromBytes(pixels),
-    width,
-  );
-}
-
-function LayerMask({ image, mask, width, height }) {
-  const maskImage = useMemo(() => maskToImage(mask), [mask]);
-  const effect = useMemo(() => Skia.RuntimeEffect.Make(`
-uniform shader image;
-uniform shader mask;
-half4 main(float2 xy) {
-  half4 color = image.eval(xy);
-  float alpha = mask.eval(xy).a;
-  return half4(color.rgb, color.a * alpha);
-}
-`), []);
-  if (!image || !maskImage || !effect || !width || !height) return null;
-  return (
-    <Fill>
-      <Shader source={effect} uniforms={{}}>
-        <ImageShader image={image} fit="fill" rect={{ x: 0, y: 0, width, height }} />
-        <ImageShader image={maskImage} fit="fill" rect={{ x: 0, y: 0, width, height }} />
-      </Shader>
-    </Fill>
-  );
-}
-
-async function callSegmentation() {
-  return {
-    success: true,
-    masks: [],
-    unavailable: true,
-  };
-}
-
-
 
 export default function EditorScreen({ imageUri, onBack, theme }) {
   const [activeTool, setActiveTool] = useState('Depth');
@@ -232,6 +209,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
   const [previewSize, setPreviewSize] = useState({ width: 0, height: 0 });
   const [clockPosition, setClockPosition] = useState({ x: 0, y: 0 });
   const clockStart = useRef({ x: 0, y: 0 });
+  const depthRunId = useRef(0);
 
   const image = useImage(imageUri);
   const depth = useImage(depthUri);
@@ -250,32 +228,14 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
     setClockPosition({ x: 0, y: 0 });
 
     try {
-      const [depthResult, segmentationResult] = await Promise.all([
-        callDepth(imageUri),
-        callSegmentation(imageUri),
-      ]);
+      const runId = depthRunId.current;
+      const depthResult = await callDepth(imageUri);
 
-      if (segmentationResult?.masks?.length) {
-        const sourceHeight = segmentationResult.image_size?.[0] || 1;
-        const sourceWidth = segmentationResult.image_size?.[1] || 1;
-        const masks = segmentationResult.masks
-          .filter((item) => Array.isArray(item.segmentation))
-          .filter((item) => (item.area || 0) / (sourceWidth * sourceHeight) >= 0.02)
-          .slice(0, MAX_AI_LAYERS);
+      if (runId !== depthRunId.current) return;
 
-        setLayers(
-          masks.map((item, index) => ({
-            id: 'ai-' + index,
-            label: 'Layer ' + (index + 1),
-            mask: item.segmentation,
-            score: item.predicted_iou || item.stability_score || 0,
-            above: false,
-          })),
-        );
-      } else {
-        setLayers([]);
-      }
-
+      // Segmentation is intentionally disabled until a reliable service is connected.
+      // Do not fabricate depth bands: the real layer masks will be added here.
+      setLayers([]);
       setDepthUri(depthResult);
       setDepthState('ready');
     } catch (error) {
@@ -286,10 +246,11 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
   };
 
   const cancelDepth = () => {
+    depthRunId.current += 1;
     setDepthMode(false);
     setDepthState('idle');
     setDepthUri(null);
-    setAboveLayers([]);
+    setLayers([]);
     setSelectedLayer(null);
     setDepthError(false);
     setDepthErrorMessage('');
@@ -297,6 +258,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
   };
 
   const confirmDepth = () => {
+    depthRunId.current += 1;
     setDepthMode(false);
     setDepthState('idle');
     setDepthError(false);
@@ -315,9 +277,9 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
   const clockPan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onStartShouldSetPanResponderCapture: () => depthMode && depthState === 'ready',
-      onMoveShouldSetPanResponder: () => depthMode && depthState === 'ready',
-      onMoveShouldSetPanResponderCapture: () => depthMode && depthState === 'ready',
+      onStartShouldSetPanResponderCapture: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
       onPanResponderGrant: () => {
         clockStart.current = clockPosition;
       },
