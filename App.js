@@ -166,8 +166,7 @@ function Home({ onOpenEditor, onOpenWallpaper, onChangeTab }) {
       </View>
 
       <View style={styles.heroCopy}>
-        <Text style={styles.heroTitle}>Make your screen{'
-'}feel alive.</Text>
+        <Text style={styles.heroTitle}>Make your screen{\"\\n\"}feel alive.</Text>
         <Text style={styles.heroBody}>Create depth and motion from the photos you already love.</Text>
       </View>
 
