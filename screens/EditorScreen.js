@@ -274,7 +274,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
 
   const clockPan = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => depthMode && depthState === 'ready',
+      onStartShouldSetPanResponder: () => true,
       onStartShouldSetPanResponderCapture: () => depthMode && depthState === 'ready',
       onMoveShouldSetPanResponder: () => depthMode && depthState === 'ready',
       onMoveShouldSetPanResponderCapture: () => depthMode && depthState === 'ready',
