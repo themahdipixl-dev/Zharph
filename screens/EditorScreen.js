@@ -99,17 +99,17 @@ async function callDepth(imageUri, attempt = 0) {
   const timeout = setTimeout(() => controller.abort(), 150000);
 
   try {
-    const runResponse = await fetch(DEPTH_API + '/gradio_api/run/on_submit', {
+    const queueResponse = await fetch(DEPTH_API + '/gradio_api/call/on_submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data: [fileData] }),
       signal: controller.signal,
     });
 
-    if (!runResponse.ok) {
-      let message = 'Depth request failed (' + runResponse.status + ')';
+    if (!queueResponse.ok) {
+      let message = 'Depth request failed (' + queueResponse.status + ')';
       try {
-        const errorBody = await runResponse.json();
+        const errorBody = await queueResponse.json();
         message = errorBody?.detail || errorBody?.error || message;
       } catch (parseError) {
         // Keep the HTTP error message when the server response is not JSON.
@@ -117,7 +117,39 @@ async function callDepth(imageUri, attempt = 0) {
       throw new Error(String(message));
     }
 
-    const result = await runResponse.json();
+    const queueResult = await queueResponse.json();
+    const eventId = queueResult?.event_id;
+
+    if (!eventId) {
+      throw new Error('Depth queue did not return an event ID');
+    }
+
+    const resultResponse = await fetch(
+      DEPTH_API + '/gradio_api/call/on_submit/' + encodeURIComponent(eventId),
+      { method: 'GET', signal: controller.signal },
+    );
+
+    if (!resultResponse.ok) {
+      throw new Error('Depth result failed (' + resultResponse.status + ')');
+    }
+
+    const streamText = await resultResponse.text();
+    const dataLine = streamText
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice(5).trim())
+      .filter(Boolean)
+      .pop();
+
+    if (!dataLine) {
+      throw new Error('Depth queue returned no result');
+    }
+
+    const result = JSON.parse(dataLine);
+    if (result?.error) {
+      throw new Error(String(result.error));
+    }
+
     const data = result?.data ?? result;
 
     if (Array.isArray(data) && data.length > 1) {
