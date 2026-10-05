@@ -1,11 +1,26 @@
 import React,{useMemo,useState} from 'react';
-import {Alert,Dimensions,Image,Pressable,ScrollView,StatusBar,StyleSheet,Switch,Text,View} from 'react-native';
+import {Alert,Dimensions,Image,Platform,PlatformColor,Pressable,ScrollView,StatusBar,StyleSheet,Switch,Text,View} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import {MaterialCommunityIcons as Icon} from '@expo/vector-icons';
 
 const W=Dimensions.get('window').width,P=16,G=10,CARD=(W-P*2-G*2)/3;
-const C={bg:'#111318',surface:'#1A1B20',surface2:'#22242B',surface3:'#2A2C34',primary:'#D7E2FF',onPrimary:'#20304E',text:'#F2F2FA',muted:'#9699A6',outline:'#464852',soft:'#39435D'};
+const dynamic=Platform.OS==='android'&&Number(Platform.Version)>=31;
+const dc=(name,fallback)=>dynamic?PlatformColor('@android:color/'+name):fallback;
+// Android 12+ exposes the wallpaper-derived Material You tonal palettes as system colors.
+// The roles below follow Android's Material You dark-theme mapping.
+const C={
+ bg:dc('system_neutral1_900','#111318'),
+ surface:dc('system_neutral1_800','#1A1B20'),
+ surface2:dc('system_neutral2_800','#22242B'),
+ surface3:dc('system_neutral2_700','#2A2C34'),
+ primary:dc('system_accent1_200','#D7E2FF'),
+ onPrimary:dc('system_accent1_800','#20304E'),
+ text:dc('system_neutral1_100','#F2F2FA'),
+ muted:dc('system_neutral1_300','#9699A6'),
+ outline:dc('system_neutral2_700','#464852'),
+ soft:dc('system_accent1_900','#39435D')
+};
 const pics=[
 ['Aurora','Nature','https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=800&q=85'],
 ['Mountain','Nature','https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=85'],
@@ -50,7 +65,7 @@ function Feature({icon,title}){return <View style={s.feature}><View style={s.fea
 
 function Saved({saved,open,toggle,home}){return <ScrollView contentContainerStyle={s.page}><Text style={s.pageTitle}>Saved</Text><Text style={s.sub}>Your favorite Zharph wallpapers.</Text>{!saved.length?<View style={s.empty}><View style={s.emptyIcon}><Icon name="heart-outline" size={30} color={C.primary}/></View><Text style={s.emptyTitle}>Nothing saved yet</Text><Text style={s.emptySub}>Tap the heart on a wallpaper to keep it here.</Text><Pressable onPress={home} style={s.secondary}><Text style={s.secondaryText}>Browse wallpapers</Text></Pressable></View>:<View style={s.grid}>{saved.map(x=><Card key={x.id} item={x} saved onOpen={()=>open(x)} onSave={()=>toggle(x)}/>)}</View>}</ScrollView>}
 
-function Settings({parallax,setParallax}){return <ScrollView contentContainerStyle={s.page}><Text style={s.pageTitle}>Settings</Text><Text style={s.sub}>Tune the Zharph experience.</Text><View style={s.settings}><Setting icon="gesture-swipe" title="Parallax motion" text="Keep depth motion enabled." value={parallax} onChange={setParallax}/><Setting icon="palette-outline" title="Material You" text="Rounded surfaces and expressive color."/><Setting icon="information-outline" title="About Zharph" text="Depth wallpapers, rebuilt from zero."/></View></ScrollView>}
+function Settings({parallax,setParallax}){return <ScrollView contentContainerStyle={s.page}><Text style={s.pageTitle}>Settings</Text><Text style={s.sub}>Tune the Zharph experience.</Text><View style={s.settings}><Setting icon="gesture-swipe" title="Parallax motion" text="Keep depth motion enabled." value={parallax} onChange={setParallax}/><Setting icon="palette-outline" title="Material You" text={dynamic?'Colors follow your Android system palette.':'Material You fallback palette on this device.'}/><Setting icon="information-outline" title="About Zharph" text="Depth wallpapers, rebuilt from zero."/></View></ScrollView>}
 function Setting({icon,title,text,value,onChange}){return <View style={s.setting}><View style={s.settingIcon}><Icon name={icon} size={22} color={C.primary}/></View><View style={{flex:1}}><Text style={s.settingTitle}>{title}</Text><Text style={s.settingSub}>{text}</Text></View>{onChange?<Switch value={value} onValueChange={onChange} trackColor={{false:C.surface3,true:C.soft}} thumbColor={value?C.primary:C.muted}/>:<Icon name="chevron-right" size={21} color={C.muted}/>}</View>}
 
 function Editor({image,depth,setDepth,parallax,setParallax,vignette,setVignette,saved,onSave,back}){return <View style={s.editor}><StatusBar barStyle="light-content" backgroundColor="#08090C"/><View style={s.editorTop}><Btn name="arrow-left" onPress={back}/><Text style={s.editorTitle}>Editor</Text><Btn name={saved?'heart':'heart-outline'} active={saved} onPress={onSave}/></View><View style={s.editorPreview}><Image source={{uri:image.uri}} style={s.fill}/><LinearGradient colors={['rgba(8,9,12,.02)','rgba(8,9,12,'+(Math.min(.72,depth/130))+')']} style={s.fill}/>{vignette&&<View style={s.vignette}/>}<View style={[s.editorChip,{transform:[{translateY:-depth*.08}]}]}><Icon name="layers-triple" size={18} color={C.primary}/><Text style={s.chipText}>{parallax?'Parallax depth':'Depth preview'}</Text></View><View style={s.clock}><Text style={s.clockBig}>09:41</Text><Text style={s.clockSmall}>Monday · Zharph</Text></View></View><ScrollView contentContainerStyle={s.controls}><View style={s.row}><Text style={s.controlTitle}>Depth</Text><Text style={s.value}>{depth}%</Text></View><View style={s.track}><View style={[s.trackFill,{width:depth+'%'}]}/></View><View style={s.depths}>{[25,50,72,90].map(x=><Pressable key={x} onPress={()=>setDepth(x)} style={[s.depthBtn,depth===x&&s.depthBtnOn]}><Text style={[s.depthText,depth===x&&s.depthTextOn]}>{x}</Text></Pressable>)}</View><View style={s.editorSetting}><View style={s.settingIcon}><Icon name="gesture-swipe" size={21} color={C.primary}/></View><View style={{flex:1}}><Text style={s.settingTitle}>Parallax motion</Text><Text style={s.settingSub}>Give the depth layer subtle movement.</Text></View><Switch value={parallax} onValueChange={setParallax} trackColor={{false:C.surface3,true:C.soft}} thumbColor={parallax?C.primary:C.muted}/></View><View style={s.editorSetting}><View style={s.settingIcon}><Icon name="gradient-horizontal" size={21} color={C.primary}/></View><View style={{flex:1}}><Text style={s.settingTitle}>Soft vignette</Text><Text style={s.settingSub}>Focus attention toward the center.</Text></View><Switch value={vignette} onValueChange={setVignette} trackColor={{false:C.surface3,true:C.soft}} thumbColor={vignette?C.primary:C.muted}/></View><Pressable onPress={onSave} style={s.primary}><Icon name={saved?'check':'bookmark-plus'} size={21} color={C.onPrimary}/><Text style={s.primaryText}>{saved?'Saved to collection':'Save wallpaper'}</Text></Pressable></ScrollView></View>}
