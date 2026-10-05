@@ -213,7 +213,11 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
 
 
           {depthState === 'ready' && layers.some((layer) => layer.above) && (
-            <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+            <Canvas
+              key={layers.filter((layer) => layer.above).map((layer) => layer.id).join('|')}
+              style={[StyleSheet.absoluteFill, styles.foregroundCanvas]}
+              pointerEvents="none"
+            >
               {layers
                 .filter((layer) => layer.above)
                 .map((layer) => (
@@ -393,6 +397,7 @@ const styles = StyleSheet.create({
   },
   clockWidget: {
     position: 'absolute',
+    zIndex: 5,
     top: 42,
     left: '50%',
     width: 190,
@@ -405,6 +410,10 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   dragIcon: { position: 'absolute', right: 12, top: 10 },
+  foregroundCanvas: {
+    zIndex: 20,
+    elevation: 20,
+  },
   clock: { color: '#fff', fontSize: 52, fontWeight: '300', letterSpacing: -2 },
   date: { color: '#fff', fontSize: 14, fontWeight: '500', marginTop: 2 },
   analyzing: {
