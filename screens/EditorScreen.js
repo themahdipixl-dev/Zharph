@@ -19,7 +19,8 @@ import {
 } from '@shopify/react-native-skia';
 
 const DEPTH_API = 'https://depth-anything-depth-anything-v2.hf.space';
-const SEGMENTATION_API = 'https://dense-captioning-medsam-inference.hf.space';
+const SEGMENTATION_API = 'https://sriiram18-orbinest-ai.hf.space';
+
 
 const MASK_SHADER = Skia.RuntimeEffect.Make(`
 uniform shader image;
@@ -163,134 +164,109 @@ async function callDepth(imageUri, attempt = 0) {
 }
 
 
+async function imageUriToBase64(imageUri) {
+  const response = await fetch(imageUri);
+  if (!response.ok) throw new Error('Could not read selected image');
+
+  const blob = await response.blob();
+
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      const value = String(reader.result || '');
+      const comma = value.indexOf(',');
+      resolve(comma >= 0 ? value.slice(comma + 1) : value);
+    };
+
+    reader.onerror = () => reject(new Error('Could not encode selected image'));
+    reader.readAsDataURL(blob);
+  });
+}
+
 async function callSegmentation(imageUri, attempt = 0) {
-  const form = new FormData();
-  form.append('files', {
-    uri: imageUri,
-    name: 'zharph-layers.jpg',
-    type: 'image/jpeg',
-  });
-
-  const uploadResponse = await fetch(SEGMENTATION_API + '/gradio_api/upload', {
-    method: 'POST',
-    body: form,
-  });
-
-  if (!uploadResponse.ok) {
-    if (attempt < 2) return callSegmentation(imageUri, attempt + 1);
-    throw new Error('Layer upload failed (' + uploadResponse.status + ')');
-  }
-
-  const uploaded = await uploadResponse.json();
-  const uploadedFile = Array.isArray(uploaded) ? uploaded[0] : uploaded;
-  const path = typeof uploadedFile === 'string' ? uploadedFile : uploadedFile?.path;
-
-  if (!path) {
-    if (attempt < 2) return callSegmentation(imageUri, attempt + 1);
-    throw new Error('Layer upload path missing');
-  }
-
-  const fileData = {
-    path,
-    meta: { _type: 'gradio.FileData' },
-    orig_name: 'zharph-layers.jpg',
-  };
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 150000);
-
   try {
-    const queueResponse = await fetch(
-      SEGMENTATION_API + '/gradio_api/call/generate_auto_masks',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          data: [
-            fileData,
-            JSON.stringify({
-              resize_longest: 640,
-              points_per_side: 16,
-              pred_iou_thresh: 0.72,
-              stability_score_thresh: 0.72,
-              min_mask_region_area: 700,
-              max_masks: 8,
-            }),
-          ],
-        }),
-        signal: controller.signal,
-      },
-    );
+    const imageBase64 = await imageUriToBase64(imageUri);
 
-    if (!queueResponse.ok) {
-      let message = 'Layer request failed (' + queueResponse.status + ')';
-      try {
-        const errorBody = await queueResponse.json();
-        message = errorBody?.detail || errorBody?.error || message;
-      } catch (parseError) {
-        // Keep the HTTP error message when the server response is not JSON.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 150000);
+
+    try {
+      const queueResponse = await fetch(
+        SEGMENTATION_API + '/gradio_api/call/sam2_detect',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            data: [
+              imageBase64,
+              'all distinct visible objects in the image',
+            ],
+          }),
+          signal: controller.signal,
+        },
+      );
+
+      if (!queueResponse.ok) {
+        throw new Error('Layer request failed (' + queueResponse.status + ')');
       }
-      throw new Error(String(message));
+
+      const queueResult = await queueResponse.json();
+      const eventId = queueResult?.event_id;
+
+      if (!eventId) {
+        throw new Error('Layer queue did not return an event ID');
+      }
+
+      const resultResponse = await fetch(
+        SEGMENTATION_API +
+          '/gradio_api/call/sam2_detect/' +
+          encodeURIComponent(eventId),
+        { method: 'GET', signal: controller.signal },
+      );
+
+      if (!resultResponse.ok) {
+        throw new Error('Layer result failed (' + resultResponse.status + ')');
+      }
+
+      const streamText = await resultResponse.text();
+      const dataLine = streamText
+        .split(/\r?\n/)
+        .filter((line) => line.startsWith('data:'))
+        .map((line) => line.slice(5).trim())
+        .filter(Boolean)
+        .pop();
+
+      if (!dataLine) {
+        throw new Error('Layer queue returned no result');
+      }
+
+      const result = JSON.parse(dataLine);
+      if (result?.error) {
+        throw new Error(String(result.error));
+      }
+
+      const data = result?.data ?? result;
+      const jsonText = Array.isArray(data) ? data[0] : data;
+      const payload =
+        typeof jsonText === 'string' ? JSON.parse(jsonText) : jsonText;
+
+      if (!payload?.success) {
+        throw new Error(payload?.error || 'Layer segmentation failed');
+      }
+
+      return payload;
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const queueResult = await queueResponse.json();
-    const eventId = queueResult?.event_id;
-
-    if (!eventId) {
-      throw new Error('Layer queue did not return an event ID');
-    }
-
-    const resultResponse = await fetch(
-      SEGMENTATION_API +
-        '/gradio_api/call/generate_auto_masks/' +
-        encodeURIComponent(eventId),
-      { method: 'GET', signal: controller.signal },
-    );
-
-    if (!resultResponse.ok) {
-      throw new Error('Layer result failed (' + resultResponse.status + ')');
-    }
-
-    const streamText = await resultResponse.text();
-    const dataLine = streamText
-      .split(/\r?\n/)
-      .filter((line) => line.startsWith('data:'))
-      .map((line) => line.slice(5).trim())
-      .filter(Boolean)
-      .pop();
-
-    if (!dataLine) {
-      throw new Error('Layer queue returned no result');
-    }
-
-    const result = JSON.parse(dataLine);
-    if (result?.error) {
-      throw new Error(String(result.error));
-    }
-
-    const data = result?.data ?? result;
-    const payload =
-      typeof data === 'string'
-        ? JSON.parse(data)
-        : Array.isArray(data)
-          ? typeof data[0] === 'string'
-            ? JSON.parse(data[0])
-            : data[0]
-          : data;
-
-    if (!payload?.success) {
-      throw new Error(payload?.error || 'Layer segmentation failed');
-    }
-
-    return payload;
   } catch (error) {
     if (attempt < 2) return callSegmentation(imageUri, attempt + 1);
+
     if (error?.name === 'AbortError') {
       throw new Error('Layer request timed out');
     }
+
     throw error;
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
@@ -453,35 +429,27 @@ function getLayerLabel(mask, index, width, height) {
 }
 
 function buildLayers(payload) {
-  const [height, width] = payload.image_size || [];
-  if (!width || !height || !Array.isArray(payload.masks)) {
+  const [width, height] = payload.original_image_size || [];
+  const masks = Array.isArray(payload.masks) ? payload.masks : [];
+
+  if (!width || !height || !masks.length) {
     throw new Error('Layer response did not contain usable masks');
   }
 
-  const imageArea = width * height;
-
-  return payload.masks
-    .filter((mask) => {
-      const ratio = Number(mask.area || 0) / imageArea;
-      return (
-        ratio >= 0.012 &&
-        ratio <= 0.72 &&
-        Number(mask.predicted_iou || 0) >= 0.65 &&
-        Number(mask.stability_score || 0) >= 0.65
-      );
-    })
+  return masks
+    .filter((mask) => typeof mask === 'string' && mask.length > 100)
     .slice(0, 8)
     .map((mask, index) => ({
       id: `ai-layer-${index + 1}`,
-      label: getLayerLabel(mask, index, width, height),
+      label: `Object ${index + 1}`,
       above: false,
-      maskUri: maskToPngDataUri(mask.segmentation, width, height),
-      bbox: mask.bbox,
-      area: mask.area,
+      maskUri: mask.startsWith('data:')
+        ? mask
+        : `data:image/png;base64,${mask}`,
+      width,
+      height,
     }));
 }
-
-
 
 
 function MaskedLayer({ layer, image, previewSize }) {
