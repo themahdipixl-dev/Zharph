@@ -143,7 +143,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
       onMoveShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponderCapture: () => true,
       onPanResponderGrant: () => {
-        clockStart.current = clockPosition;
+        clockStart.current = { ...clockPosition };
       },
       onPanResponderMove: (_, gesture) => {
         setClockPosition({
