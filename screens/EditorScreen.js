@@ -447,8 +447,6 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
         </View>
       ) : (
         <View style={styles.toolsArea}>
-
-      <View style={styles.toolsArea}>
         <Text style={[styles.heading, { color: theme.onSurface }]}>Customize</Text>
         <ScrollView
           horizontal
