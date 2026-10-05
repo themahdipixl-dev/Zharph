@@ -92,18 +92,19 @@ function bytesToBase64(bytes) {
   return output;
 }
 
-function maskToPngDataUri(mask, width, height) {
+function layerToPngDataUri(mask, width, height, rgb) {
   const raw = new Uint8Array(height * (width * 4 + 1));
   let rawOffset = 0;
   for (let y = 0; y < height; y += 1) {
     raw[rawOffset++] = 0;
     const row = mask[y];
     for (let x = 0; x < width; x += 1) {
-      const alpha = row[x] ? 255 : 0;
-      raw[rawOffset++] = 255;
-      raw[rawOffset++] = 255;
-      raw[rawOffset++] = 255;
-      raw[rawOffset++] = alpha;
+      const visible = row[x] === 1;
+      const pixelOffset = (y * width + x) * 3;
+      raw[rawOffset++] = visible ? rgb[pixelOffset] : 0;
+      raw[rawOffset++] = visible ? rgb[pixelOffset + 1] : 0;
+      raw[rawOffset++] = visible ? rgb[pixelOffset + 2] : 0;
+      raw[rawOffset++] = visible ? 255 : 0;
     }
   }
 
@@ -157,6 +158,7 @@ export async function analyzeLayers(imageUri) {
   const imageTensor = await loadImageTensor(imageUri);
 
   try {
+    const sourceRgb = imageTensor.dataSync();
     const result = await model.segment(imageTensor);
     const { width, height, segmentationMap, legend } = result;
 
@@ -212,7 +214,7 @@ export async function analyzeLayers(imageUri) {
         id: 'local-ai-layer-' + (index + 1),
         label: humanizeLabel(label),
         above: false,
-        maskUri: maskToPngDataUri(mask, width, height),
+        imageUri: layerToPngDataUri(mask, width, height, sourceRgb),
         width,
         height,
       };
