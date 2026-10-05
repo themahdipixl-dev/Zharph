@@ -18,18 +18,30 @@ const PADDING = 18;
 const GAP = 10;
 const CARD_WIDTH = (width - PADDING * 2 - GAP * 2) / 3;
 
+const COLORS = {
+  background: '#121318',
+  surface: '#1C1D24',
+  surfaceVariant: '#292A33',
+  primary: '#B9C5FF',
+  onPrimary: '#202A55',
+  secondary: '#C5C5D8',
+  onSurface: '#E4E1EA',
+  onSurfaceVariant: '#C5C4CD',
+  outline: '#474852',
+};
+
 const TABS = ['All', 'Nature', 'Abstract', 'Architecture'];
 
 const DEFAULT_WALLPAPERS = [
-  { id: '1', title: 'Aurora', category: 'Nature', colors: ['#536D73', '#182326'], icon: '✦' },
-  { id: '2', title: 'Summit', category: 'Nature', colors: ['#78878E', '#29353A'], icon: '⌁' },
-  { id: '3', title: 'Lunar', category: 'Abstract', colors: ['#57545E', '#1D1B22'], icon: '○' },
-  { id: '4', title: 'Tide', category: 'Nature', colors: ['#467D8A', '#172F35'], icon: '≈' },
-  { id: '5', title: 'Noir', category: 'Abstract', colors: ['#655F69', '#211F25'], icon: '◐' },
-  { id: '6', title: 'Haze', category: 'Abstract', colors: ['#838481', '#343535'], icon: '◌' },
-  { id: '7', title: 'Dune', category: 'Nature', colors: ['#88715D', '#35281E'], icon: '◇' },
-  { id: '8', title: 'Pine', category: 'Nature', colors: ['#526E5B', '#1B2B22'], icon: '♧' },
-  { id: '9', title: 'Grid', category: 'Architecture', colors: ['#69747A', '#252D31'], icon: '＋' },
+  { id: '1', title: 'Aurora', category: 'Nature', colors: ['#526B78', '#182229'], icon: '✦' },
+  { id: '2', title: 'Summit', category: 'Nature', colors: ['#77858D', '#28343A'], icon: '⌁' },
+  { id: '3', title: 'Lunar', category: 'Abstract', colors: ['#5B5967', '#1D1C25'], icon: '○' },
+  { id: '4', title: 'Tide', category: 'Nature', colors: ['#47798A', '#162F38'], icon: '≈' },
+  { id: '5', title: 'Noir', category: 'Abstract', colors: ['#68636F', '#211F27'], icon: '◐' },
+  { id: '6', title: 'Haze', category: 'Abstract', colors: ['#83848A', '#34353B'], icon: '◌' },
+  { id: '7', title: 'Dune', category: 'Nature', colors: ['#89725E', '#35281F'], icon: '◇' },
+  { id: '8', title: 'Pine', category: 'Nature', colors: ['#536E5C', '#1B2B22'], icon: '♧' },
+  { id: '9', title: 'Grid', category: 'Architecture', colors: ['#68737B', '#252D32'], icon: '＋' },
 ];
 
 export default function App() {
@@ -68,32 +80,23 @@ export default function App() {
       <StatusBar style="light" />
 
       <SafeAreaView style={styles.safe}>
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <View>
+            <View style={styles.headerText}>
               <Text style={styles.kicker}>ZHARPH</Text>
               <Text style={styles.title}>Find your depth.</Text>
+              <Text style={styles.intro}>
+                A collection of wallpapers made for depth.
+              </Text>
             </View>
 
-            <Pressable onPress={pickWallpaper} style={styles.neoButton}>
-              <View style={styles.neoButtonHighlight} />
+            <Pressable onPress={pickWallpaper} style={styles.iconButton}>
               <Text style={styles.headerPlus}>＋</Text>
             </Pressable>
           </View>
 
-          <Text style={styles.intro}>
-            A softer way to make your screen feel deeper.
-          </Text>
-
           <View style={styles.tabsTrack}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.tabs}
-            >
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
               {TABS.map((tab) => {
                 const active = tab === activeTab;
                 return (
@@ -102,9 +105,7 @@ export default function App() {
                     onPress={() => setActiveTab(tab)}
                     style={[styles.tab, active && styles.tabActive]}
                   >
-                    <Text style={[styles.tabText, active && styles.tabTextActive]}>
-                      {tab}
-                    </Text>
+                    <Text style={[styles.tabText, active && styles.tabTextActive]}>{tab}</Text>
                   </Pressable>
                 );
               })}
@@ -119,16 +120,13 @@ export default function App() {
           </View>
 
           <View style={styles.grid}>
-            <Pressable onPress={pickWallpaper} style={styles.cardShadow}>
-              <View style={[styles.neoCard, styles.addCard]}>
-                <View style={styles.addHighlight} />
-                <View style={styles.addInner}>
-                  <View style={styles.plusWell}>
-                    <Text style={styles.addPlus}>＋</Text>
-                  </View>
-                  <Text style={styles.addTitle}>Your photo</Text>
-                  <Text style={styles.addCaption}>Choose from gallery</Text>
+            <Pressable onPress={pickWallpaper} style={styles.cardPressable}>
+              <View style={[styles.wallpaperCard, styles.addCard]}>
+                <View style={styles.addIcon}>
+                  <Text style={styles.addPlus}>＋</Text>
                 </View>
+                <Text style={styles.addTitle}>Your photo</Text>
+                <Text style={styles.addCaption}>Choose from gallery</Text>
               </View>
             </Pressable>
 
@@ -136,9 +134,9 @@ export default function App() {
               <Pressable
                 key={wallpaper.id}
                 onPress={() => openDefaultWallpaper(wallpaper)}
-                style={styles.cardShadow}
+                style={styles.cardPressable}
               >
-                <View style={styles.neoCard}>
+                <View style={styles.wallpaperCard}>
                   <LinearGradient colors={wallpaper.colors} style={styles.cardArt}>
                     <Text style={styles.artIcon}>{wallpaper.icon}</Text>
                     <View style={styles.cardBottom}>
@@ -152,13 +150,11 @@ export default function App() {
           </View>
         </ScrollView>
 
-        <View style={styles.navShadow}>
-          <View style={styles.bottomNav}>
-            <NavButton icon="⌂" label="Home" active />
-            <NavButton icon="◒" label="Create" />
-            <NavButton icon="♡" label="Saved" />
-            <NavButton icon="⋯" label="More" />
-          </View>
+        <View style={styles.bottomNav}>
+          <NavButton icon="⌂" label="Home" active />
+          <NavButton icon="◒" label="Create" />
+          <NavButton icon="♡" label="Saved" />
+          <NavButton icon="⋯" label="More" />
         </View>
       </SafeAreaView>
 
@@ -178,9 +174,10 @@ export default function App() {
 
 function NavButton({ icon, label, active }) {
   return (
-    <Pressable style={[styles.navButton, active && styles.navButtonActive]}>
-      {active && <View style={styles.navActiveHighlight} />}
-      <Text style={[styles.navIcon, active && styles.navIconActive]}>{icon}</Text>
+    <Pressable style={styles.navButton}>
+      <View style={[styles.navIndicator, active && styles.navIndicatorActive]}>
+        <Text style={[styles.navIcon, active && styles.navIconActive]}>{icon}</Text>
+      </View>
       <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
     </Pressable>
   );
@@ -193,7 +190,7 @@ function EditorScreen({ imageUri, wallpaper, onClose }) {
 
       <SafeAreaView style={styles.editorSafe}>
         <View style={styles.editorHeader}>
-          <Pressable onPress={onClose} style={styles.backButton}>
+          <Pressable onPress={onClose} style={styles.iconButton}>
             <Text style={styles.backText}>‹</Text>
           </Pressable>
 
@@ -206,53 +203,47 @@ function EditorScreen({ imageUri, wallpaper, onClose }) {
         </View>
 
         <View style={styles.editorPreviewWrap}>
-          <View style={styles.previewShadow}>
-            <View style={styles.editorPreview}>
-              {imageUri ? (
-                <Image source={{ uri: imageUri }} style={styles.editorImage} resizeMode="cover" />
-              ) : (
-                <LinearGradient colors={wallpaper.colors} style={styles.editorImage}>
-                  <Text style={styles.editorArt}>{wallpaper.icon}</Text>
-                </LinearGradient>
-              )}
+          <View style={styles.editorPreview}>
+            {imageUri ? (
+              <Image source={{ uri: imageUri }} style={styles.editorImage} resizeMode="cover" />
+            ) : (
+              <LinearGradient colors={wallpaper.colors} style={styles.editorImage}>
+                <Text style={styles.editorArt}>{wallpaper.icon}</Text>
+              </LinearGradient>
+            )}
 
-              <LinearGradient
-                pointerEvents="none"
-                colors={['rgba(255,255,255,0.05)', 'transparent', 'rgba(0,0,0,0.42)']}
-                style={StyleSheet.absoluteFill}
-              />
+            <LinearGradient
+              pointerEvents="none"
+              colors={['rgba(0,0,0,0.08)', 'transparent', 'rgba(0,0,0,0.45)']}
+              style={StyleSheet.absoluteFill}
+            />
 
-              <View style={styles.editorClock}>
-                <Text style={styles.editorTime}>10:42</Text>
-                <Text style={styles.editorDate}>Monday, October 5</Text>
-              </View>
+            <View style={styles.editorClock}>
+              <Text style={styles.editorTime}>10:42</Text>
+              <Text style={styles.editorDate}>Monday, October 5</Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.editorPanelShadow}>
-          <View style={styles.editorPanel}>
-            <View style={styles.panelHeading}>
-              <View>
-                <Text style={styles.panelKicker}>DEPTH CONTROLS</Text>
-                <Text style={styles.panelTitle}>Shape the layer.</Text>
-              </View>
-              <Text style={styles.panelStep}>01</Text>
+        <View style={styles.editorPanel}>
+          <View style={styles.panelHeading}>
+            <View>
+              <Text style={styles.panelKicker}>DEPTH CONTROLS</Text>
+              <Text style={styles.panelTitle}>Shape the layer.</Text>
             </View>
-
-            <View style={styles.controlRow}>
-              <ControlChip label="Depth" active />
-              <ControlChip label="Position" />
-              <ControlChip label="Clock" />
-            </View>
-
-            <Pressable style={styles.continueShadow}>
-              <View style={styles.continueButton}>
-                <Text style={styles.continueText}>Continue</Text>
-                <Text style={styles.continueArrow}>→</Text>
-              </View>
-            </Pressable>
+            <Text style={styles.panelStep}>01</Text>
           </View>
+
+          <View style={styles.controlRow}>
+            <ControlChip label="Depth" active />
+            <ControlChip label="Position" />
+            <ControlChip label="Clock" />
+          </View>
+
+          <Pressable style={styles.continueButton}>
+            <Text style={styles.continueText}>Continue</Text>
+            <Text style={styles.continueArrow}>→</Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     </View>
@@ -261,10 +252,8 @@ function EditorScreen({ imageUri, wallpaper, onClose }) {
 
 function ControlChip({ label, active }) {
   return (
-    <Pressable style={styles.chipShadow}>
-      <View style={[styles.controlChip, active && styles.controlChipActive]}>
-        <Text style={[styles.controlLabel, active && styles.controlLabelActive]}>{label}</Text>
-      </View>
+    <Pressable style={[styles.controlChip, active && styles.controlChipActive]}>
+      <Text style={[styles.controlLabel, active && styles.controlLabelActive]}>{label}</Text>
     </Pressable>
   );
 }
@@ -272,121 +261,103 @@ function ControlChip({ label, active }) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#202426',
+    backgroundColor: COLORS.background,
   },
-  safe: {
-    flex: 1,
-  },
+  safe: { flex: 1 },
   content: {
     paddingHorizontal: PADDING,
-    paddingTop: 12,
+    paddingTop: 14,
     paddingBottom: 112,
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingTop: 9,
+    alignItems: 'flex-start',
+    paddingTop: 8,
+  },
+  headerText: {
+    flex: 1,
+    paddingRight: 16,
   },
   kicker: {
-    color: '#899296',
-    fontSize: 10,
+    color: COLORS.secondary,
+    fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 3,
-    marginBottom: 8,
+    letterSpacing: 2.2,
+    marginBottom: 7,
   },
   title: {
-    color: '#E8ECEC',
-    fontSize: 32,
+    color: COLORS.onSurface,
+    fontSize: 31,
     lineHeight: 37,
     fontWeight: '700',
-    letterSpacing: -1.1,
+    letterSpacing: -0.7,
   },
   intro: {
-    color: '#899194',
+    color: COLORS.onSurfaceVariant,
     fontSize: 13,
     lineHeight: 19,
-    maxWidth: 310,
-    marginTop: 11,
+    marginTop: 9,
+    maxWidth: 300,
   },
-  neoButton: {
-    width: 45,
-    height: 45,
-    borderRadius: 14,
-    backgroundColor: '#202426',
+  iconButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.surfaceVariant,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 8,
-    shadowColor: '#090A0B',
-    shadowOffset: { width: 5, height: 5 },
-    shadowOpacity: 0.8,
-    shadowRadius: 7,
-  },
-  neoButtonHighlight: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 14,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
   },
   headerPlus: {
-    color: '#DCE1E1',
+    color: COLORS.onSurface,
     fontSize: 27,
     fontWeight: '300',
     marginTop: -2,
   },
   tabsTrack: {
-    marginTop: 27,
-    marginBottom: 19,
-    borderRadius: 17,
-    backgroundColor: '#1B1F21',
-    padding: 5,
-    elevation: 5,
-    shadowColor: '#0B0D0E',
-    shadowOffset: { width: 4, height: 4 },
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
+    marginTop: 26,
+    marginBottom: 20,
+    borderRadius: 20,
+    backgroundColor: COLORS.surface,
+    padding: 4,
   },
   tabs: {
     gap: 4,
   },
   tab: {
-    height: 39,
-    paddingHorizontal: 15,
-    borderRadius: 12,
+    minWidth: 72,
+    height: 40,
+    paddingHorizontal: 16,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   tabActive: {
-    backgroundColor: '#282E30',
-    elevation: 3,
-    shadowColor: '#0C0D0E',
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 0.8,
-    shadowRadius: 3,
+    backgroundColor: COLORS.primary,
   },
   tabText: {
-    color: '#697174',
+    color: COLORS.onSurfaceVariant,
     fontSize: 12,
-    fontWeight: '650',
+    fontWeight: '600',
   },
   tabTextActive: {
-    color: '#E3E8E8',
+    color: COLORS.onPrimary,
+    fontWeight: '700',
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 13,
+    marginBottom: 12,
     paddingHorizontal: 2,
   },
   sectionTitle: {
-    color: '#C9CECE',
-    fontSize: 13,
+    color: COLORS.onSurface,
+    fontSize: 14,
     fontWeight: '700',
   },
   sectionCount: {
-    color: '#687174',
+    color: COLORS.onSurfaceVariant,
     fontSize: 10,
     fontWeight: '600',
   },
@@ -395,163 +366,126 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: GAP,
   },
-  cardShadow: {
+  cardPressable: {
     width: CARD_WIDTH,
     height: CARD_WIDTH * 1.48,
-    borderRadius: 16,
-    elevation: 8,
-    shadowColor: '#090B0C',
-    shadowOffset: { width: 6, height: 6 },
-    shadowOpacity: 0.85,
-    shadowRadius: 8,
   },
-  neoCard: {
+  wallpaperCard: {
     flex: 1,
-    borderRadius: 16,
+    borderRadius: 18,
     overflow: 'hidden',
-    backgroundColor: '#24292B',
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
   },
   addCard: {
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.035)',
-  },
-  addHighlight: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 16,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
-    pointerEvents: 'none',
-  },
-  addInner: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: COLORS.surfaceVariant,
   },
-  plusWell: {
+  addIcon: {
     width: 48,
     height: 48,
-    borderRadius: 16,
+    borderRadius: 24,
+    backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1E2224',
-    elevation: 4,
-    shadowColor: '#0A0B0C',
-    shadowOffset: { width: 3, height: 3 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
   },
   addPlus: {
-    color: '#DCE1E1',
+    color: COLORS.onPrimary,
     fontSize: 28,
-    fontWeight: '200',
+    fontWeight: '300',
     marginTop: -2,
   },
   addTitle: {
-    color: '#C9CECE',
+    color: COLORS.onSurface,
     fontSize: 11,
     fontWeight: '700',
     marginTop: 10,
   },
   addCaption: {
-    color: '#697174',
+    color: COLORS.onSurfaceVariant,
     fontSize: 8,
-    marginTop: 4,
+    marginTop: 3,
   },
   cardArt: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   artIcon: {
-    color: 'rgba(255,255,255,0.46)',
-    fontSize: 38,
+    color: 'rgba(255,255,255,0.48)',
+    fontSize: 39,
     fontWeight: '200',
   },
   cardBottom: {
     position: 'absolute',
-    left: 10,
-    right: 10,
-    bottom: 9,
+    left: 11,
+    right: 11,
+    bottom: 10,
   },
   cardTitle: {
-    color: '#F0F3F3',
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
   },
   cardCategory: {
-    color: 'rgba(255,255,255,0.48)',
+    color: 'rgba(255,255,255,0.55)',
     fontSize: 8,
     marginTop: 2,
   },
-  navShadow: {
-    position: 'absolute',
-    left: 18,
-    right: 18,
-    bottom: 10,
-    height: 60,
-    borderRadius: 19,
-    elevation: 10,
-    shadowColor: '#080A0B',
-    shadowOffset: { width: 6, height: 6 },
-    shadowOpacity: 0.9,
-    shadowRadius: 9,
-  },
   bottomNav: {
-    flex: 1,
-    borderRadius: 19,
-    backgroundColor: '#24292B',
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    bottom: 10,
+    height: 72,
+    borderRadius: 28,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
-    overflow: 'hidden',
+    paddingHorizontal: 5,
   },
   navButton: {
     flex: 1,
-    height: 50,
+    height: 62,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
-    borderRadius: 15,
-    marginHorizontal: 3,
+    gap: 3,
   },
-  navButtonActive: {
-    backgroundColor: '#1E2224',
-    elevation: 3,
-    shadowColor: '#0B0D0E',
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 0.75,
-    shadowRadius: 3,
+  navIndicator: {
+    width: 64,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  navActiveHighlight: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 15,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
+  navIndicatorActive: {
+    backgroundColor: COLORS.primary,
   },
   navIcon: {
-    color: '#667073',
-    fontSize: 18,
+    color: COLORS.onSurfaceVariant,
+    fontSize: 19,
   },
   navIconActive: {
-    color: '#E6EBEB',
+    color: COLORS.onPrimary,
   },
   navLabel: {
-    color: '#626B6E',
-    fontSize: 8,
-    fontWeight: '650',
+    color: COLORS.onSurfaceVariant,
+    fontSize: 9,
+    fontWeight: '600',
   },
   navLabelActive: {
-    color: '#DDE2E2',
+    color: COLORS.onSurface,
+    fontWeight: '700',
   },
   editorOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 10,
-    backgroundColor: '#202426',
+    backgroundColor: COLORS.background,
   },
   editorSafe: {
     flex: 1,
@@ -563,65 +497,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  backButton: {
-    width: 43,
-    height: 43,
-    borderRadius: 14,
-    backgroundColor: '#202426',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 7,
-    shadowColor: '#090A0B',
-    shadowOffset: { width: 4, height: 4 },
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
-  },
   backText: {
-    color: '#E7ECEC',
+    color: COLORS.onSurface,
     fontSize: 35,
-    fontWeight: '200',
+    fontWeight: '300',
     marginTop: -5,
   },
   editorHeaderCenter: {
     alignItems: 'center',
   },
   editorKicker: {
-    color: '#727B7E',
+    color: COLORS.secondary,
     fontSize: 8,
     fontWeight: '800',
     letterSpacing: 2,
   },
   editorTitle: {
-    color: '#E5EAEA',
+    color: COLORS.onSurface,
     fontSize: 15,
     fontWeight: '700',
     marginTop: 2,
   },
   headerSpacer: {
-    width: 43,
+    width: 48,
   },
   editorPreviewWrap: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  previewShadow: {
+  editorPreview: {
     width: width - 58,
     height: Math.min(width * 1.42, 570),
-    borderRadius: 24,
-    elevation: 10,
-    shadowColor: '#080A0B',
-    shadowOffset: { width: 7, height: 7 },
-    shadowOpacity: 0.9,
-    shadowRadius: 10,
-  },
-  editorPreview: {
-    flex: 1,
-    borderRadius: 24,
+    borderRadius: 28,
     overflow: 'hidden',
-    backgroundColor: '#282D2F',
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
   },
   editorImage: {
@@ -630,7 +541,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   editorArt: {
-    color: 'rgba(255,255,255,0.48)',
+    color: 'rgba(255,255,255,0.5)',
     fontSize: 80,
   },
   editorClock: {
@@ -653,22 +564,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 2,
   },
-  editorPanelShadow: {
-    borderRadius: 22,
-    marginBottom: 12,
-    elevation: 8,
-    shadowColor: '#090B0C',
-    shadowOffset: { width: 6, height: 6 },
-    shadowOpacity: 0.9,
-    shadowRadius: 8,
-  },
   editorPanel: {
-    borderRadius: 22,
-    padding: 16,
-    backgroundColor: '#24292B',
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 28,
+    padding: 17,
+    marginBottom: 12,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
   },
   panelHeading: {
     flexDirection: 'row',
@@ -676,19 +578,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   panelKicker: {
-    color: '#727B7E',
+    color: COLORS.secondary,
     fontSize: 8,
     fontWeight: '800',
-    letterSpacing: 2,
+    letterSpacing: 1.8,
   },
   panelTitle: {
-    color: '#E5EAEA',
+    color: COLORS.onSurface,
     fontSize: 19,
     fontWeight: '700',
     marginTop: 3,
   },
   panelStep: {
-    color: '#687174',
+    color: COLORS.onSurfaceVariant,
     fontSize: 11,
     fontWeight: '700',
   },
@@ -697,61 +599,45 @@ const styles = StyleSheet.create({
     gap: 7,
     marginTop: 13,
   },
-  chipShadow: {
-    flex: 1,
-    borderRadius: 14,
-    elevation: 4,
-    shadowColor: '#0A0B0C',
-    shadowOffset: { width: 3, height: 3 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-  },
   controlChip: {
-    height: 43,
-    borderRadius: 14,
+    flex: 1,
+    height: 45,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#202426',
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderColor: 'rgba(255,255,255,0.055)',
+    backgroundColor: COLORS.surfaceVariant,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
   controlChipActive: {
-    backgroundColor: '#2B3133',
-    borderColor: 'rgba(255,255,255,0.13)',
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   controlLabel: {
-    color: '#727B7E',
+    color: COLORS.onSurfaceVariant,
     fontSize: 10,
     fontWeight: '650',
   },
   controlLabelActive: {
-    color: '#E8EDED',
-  },
-  continueShadow: {
-    marginTop: 10,
-    borderRadius: 14,
-    elevation: 5,
-    shadowColor: '#0A0B0C',
-    shadowOffset: { width: 4, height: 4 },
-    shadowOpacity: 0.8,
-    shadowRadius: 5,
+    color: COLORS.onPrimary,
+    fontWeight: '700',
   },
   continueButton: {
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: '#DDE3E2',
-    flexDirection: 'row',
+    height: 48,
+    borderRadius: 17,
+    marginTop: 10,
+    backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
   },
   continueText: {
-    color: '#1B2021',
+    color: COLORS.onPrimary,
     fontSize: 12,
     fontWeight: '800',
   },
   continueArrow: {
-    color: '#1B2021',
+    color: COLORS.onPrimary,
     fontSize: 17,
     marginLeft: 10,
     marginTop: -1,
