@@ -13,9 +13,9 @@ import { analyzeLayers } from '../services/localDepth';
 import {
   Canvas,
   Fill,
+  Image,
   ImageShader,
-  Shader,
-  Skia,
+  Mask,
   useImage,
 } from '@shopify/react-native-skia';
 
@@ -26,39 +26,36 @@ const TOOLS = [
   ['palette-outline', 'Color'],
 ];
 
-const MASK_SHADER = Skia.RuntimeEffect.Make(`
-  uniform shader image;
-  uniform shader mask;
-
-  half4 main(float2 p) {
-    half4 source = image.eval(p);
-    half4 maskColor = mask.eval(p);
-    return half4(source.rgb, source.a * maskColor.a);
-  }
-`);
-
 function MaskedLayer({ layer, image, previewSize }) {
   const mask = useImage(layer.maskUri);
 
-  if (!MASK_SHADER || !image || !mask || !previewSize.width || !previewSize.height) {
+  if (!image || !mask || !previewSize.width || !previewSize.height) {
     return null;
   }
 
   return (
-    <Fill>
-      <Shader source={MASK_SHADER}>
-        <ImageShader
-          image={image}
-          fit="fill"
-          rect={{ x: 0, y: 0, width: previewSize.width, height: previewSize.height }}
-        />
-        <ImageShader
+    <Mask
+      mode="luminance"
+      mask={
+        <Image
           image={mask}
+          x={0}
+          y={0}
+          width={previewSize.width}
+          height={previewSize.height}
           fit="fill"
-          rect={{ x: 0, y: 0, width: previewSize.width, height: previewSize.height }}
         />
-      </Shader>
-    </Fill>
+      }
+    >
+      <Image
+        image={image}
+        x={0}
+        y={0}
+        width={previewSize.width}
+        height={previewSize.height}
+        fit="fill"
+      />
+    </Mask>
   );
 }
 
@@ -498,5 +495,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  toolLabel: { fontSize: 11, fontWeight: '600', marginTop: 6 },
+  toolLabel: { fontSize: 11, fontWeight: '600' },
 });
