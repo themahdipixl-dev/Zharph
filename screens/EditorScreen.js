@@ -15,6 +15,8 @@ import {
   ImageShader,
   Shader,
   Skia,
+  AlphaType,
+  ColorType,
   useImage,
 } from '@shopify/react-native-skia';
 
@@ -171,33 +173,106 @@ async function callDepth(imageUri, attempt = 0) {
   }
 }
 
-function DepthLayer({ image, depth, layer, width, height }) {
-  const uniforms = useMemo(
-    () => ({
-      minDepth: layer.min,
-      maxDepth: layer.max,
-    }),
-    [layer],
+function maskToImage(mask) {
+  if (!mask?.length || !mask[0]?.length) return null;
+  const height = mask.length;
+  const width = mask[0].length;
+  const pixels = new Uint8Array(width * height);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) pixels[y * width + x] = mask[y][x] ? 255 : 0;
+  }
+  return Skia.Image.MakeImage(
+    { width, height, alphaType: AlphaType.Opaque, colorType: ColorType.Alpha_8 },
+    Skia.Data.fromBytes(pixels),
+    width,
   );
+}
 
-  if (!image || !depth || !DEPTH_SHADER) return null;
-
+function LayerMask({ image, mask, width, height }) {
+  const maskImage = useMemo(() => maskToImage(mask), [mask]);
+  const effect = useMemo(() => Skia.RuntimeEffect.Make(`
+uniform shader image;
+uniform shader mask;
+half4 main(float2 xy) {
+  half4 color = image.eval(xy);
+  float alpha = mask.eval(xy).a;
+  return half4(color.rgb, color.a * alpha);
+}
+`), []);
+  if (!image || !maskImage || !effect || !width || !height) return null;
   return (
     <Fill>
-      <Shader source={DEPTH_SHADER} uniforms={uniforms}>
-        <ImageShader
-          image={image}
-          fit="fill"
-          rect={{ x: 0, y: 0, width, height }}
-        />
-        <ImageShader
-          image={depth}
-          fit="fill"
-          rect={{ x: 0, y: 0, width, height }}
-        />
+      <Shader source={effect} uniforms={{}}>
+        <ImageShader image={image} fit="fill" rect={{ x: 0, y: 0, width, height }} />
+        <ImageShader image={maskImage} fit="fill" rect={{ x: 0, y: 0, width, height }} />
       </Shader>
     </Fill>
   );
+}
+
+async function callSegmentation(imageUri, attempt = 0) {
+  const form = new FormData();
+  form.append('files', { uri: imageUri, name: 'zharph-layers.jpg', type: 'image/jpeg' });
+  const uploadResponse = await fetch(SEGMENT_API + '/gradio_api/upload', { method: 'POST', body: form });
+  if (!uploadResponse.ok) {
+    if (attempt < 2) return callSegmentation(imageUri, attempt + 1);
+    throw new Error('Layer upload failed (' + uploadResponse.status + ')');
+  }
+  const uploaded = await uploadResponse.json();
+  const uploadedFile = Array.isArray(uploaded) ? uploaded[0] : uploaded;
+  const path = typeof uploadedFile === 'string' ? uploadedFile : uploadedFile?.path;
+  if (!path) throw new Error('Layer upload path missing');
+
+  const fileData = { path, meta: { _type: 'gradio.FileData' }, orig_name: 'zharph-layers.jpg' };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 180000);
+
+  try {
+    const queueResponse = await fetch(SEGMENT_API + '/gradio_api/call/generate_auto_masks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        data: [
+          fileData,
+          JSON.stringify({
+            resize_longest: 384,
+            max_masks: MAX_AI_LAYERS,
+            pred_iou_thresh: 0.72,
+            stability_score_thresh: 0.72,
+          }),
+        ],
+      }),
+      signal: controller.signal,
+    });
+    if (!queueResponse.ok) throw new Error('Layer request failed (' + queueResponse.status + ')');
+    const queueResult = await queueResponse.json();
+    const eventId = queueResult?.event_id;
+    if (!eventId) throw new Error('Layer queue did not return an event ID');
+
+    const resultResponse = await fetch(
+      SEGMENT_API + '/gradio_api/call/generate_auto_masks/' + encodeURIComponent(eventId),
+      { method: 'GET', signal: controller.signal },
+    );
+    if (!resultResponse.ok) throw new Error('Layer result failed (' + resultResponse.status + ')');
+
+    const text = await resultResponse.text();
+    const line = text.split(/\r?\n/).filter((v) => v.startsWith('data:')).map((v) => v.slice(5).trim()).filter(Boolean).pop();
+    if (!line) throw new Error('Layer queue returned no result');
+
+    const result = JSON.parse(line);
+    if (result?.error) throw new Error(String(result.error));
+    const data = result?.data ?? result;
+    const payload = Array.isArray(data) ? data[0] : data;
+    const parsed = typeof payload === 'string' ? JSON.parse(payload) : payload;
+    if (!parsed?.success || !Array.isArray(parsed.masks)) throw new Error(parsed?.error || 'AI returned no usable layers');
+    return parsed;
+  } catch (error) {
+    if (attempt < 2) return callSegmentation(imageUri, attempt + 1);
+    if (error?.name === 'AbortError') throw new Error('AI layer analysis timed out');
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export default function EditorScreen({ imageUri, onBack, theme }) {
