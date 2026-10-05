@@ -353,10 +353,10 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
   };
 
   const toggleLayer = (id) => {
-    setAboveLayers((current) =>
-      current.includes(id)
-        ? current.filter((item) => item !== id)
-        : [...current, id],
+    setLayers((current) =>
+      current.map((layer) =>
+        layer.id === id ? { ...layer, above: !layer.above } : layer,
+      ),
     );
     setSelectedLayer(id);
   };
