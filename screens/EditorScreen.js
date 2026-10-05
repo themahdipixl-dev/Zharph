@@ -57,7 +57,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    paddingTop: 12,
+    paddingTop: 28,
   },
   header: { height: 66, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   button: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
