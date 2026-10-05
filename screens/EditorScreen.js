@@ -7,17 +7,10 @@ import {
   StyleSheet,
   Text,
   View,
+  Image,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { analyzeLayers } from '../services/localDepth';
-import {
-  Canvas,
-  Fill,
-  Image,
-  ImageShader,
-  Mask,
-  useImage,
-} from '@shopify/react-native-skia';
 
 const TOOLS = [
   ['layers-outline', 'Depth'],
@@ -25,38 +18,6 @@ const TOOLS = [
   ['tune-vertical', 'Adjust'],
   ['palette-outline', 'Color'],
 ];
-
-function MaskedLayer({ layer, image, previewSize }) {
-  const mask = useImage(layer.maskUri);
-
-  if (!image || !mask || !previewSize.width || !previewSize.height) {
-    return null;
-  }
-
-  return (
-    <Mask
-      mask={
-        <Image
-          image={mask}
-          x={0}
-          y={0}
-          width={previewSize.width}
-          height={previewSize.height}
-          fit="fill"
-        />
-      }
-    >
-      <Image
-        image={image}
-        x={0}
-        y={0}
-        width={previewSize.width}
-        height={previewSize.height}
-        fit="fill"
-      />
-    </Mask>
-  );
-}
 
 export default function EditorScreen({ imageUri, onBack, theme }) {
   const [activeTool, setActiveTool] = useState('Depth');
@@ -76,8 +37,6 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
     clockPositionRef.current = position;
     setClockPosition(position);
   };
-
-  const image = useImage(imageUri);
 
   const runDepth = async () => {
     if (depthState === 'analyzing') return;
@@ -176,17 +135,11 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
             setPreviewSize({ width, height });
           }}
         >
-          <Canvas style={StyleSheet.absoluteFill}>
-            {image ? (
-              <Fill>
-                <ImageShader
-                  image={image}
-                  fit="fill"
-                  rect={{ x: 0, y: 0, width: previewSize.width, height: previewSize.height }}
-                />
-              </Fill>
-            ) : null}
-          </Canvas>
+          <Image
+            source={{ uri: imageUri }}
+            style={StyleSheet.absoluteFill}
+            resizeMode="stretch"
+          />
 
           <View
             {...clockPan.panHandlers}
@@ -214,22 +167,21 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
           </View>
 
           {depthState === 'ready' && layers.some((layer) => layer.above) && (
-            <Canvas
-              key={layers.filter((layer) => layer.above).map((layer) => layer.id).join('|')}
-              style={[StyleSheet.absoluteFill, styles.foregroundCanvas]}
+            <View
               pointerEvents="none"
+              style={styles.foregroundLayers}
             >
               {layers
                 .filter((layer) => layer.above)
                 .map((layer) => (
-                  <MaskedLayer
+                  <Image
                     key={layer.id}
-                    layer={layer}
-                    image={image}
-                    previewSize={previewSize}
+                    source={{ uri: layer.imageUri }}
+                    style={StyleSheet.absoluteFill}
+                    resizeMode="stretch"
                   />
                 ))}
-            </Canvas>
+            </View>
           )}
 
           {depthState === 'analyzing' && (
@@ -411,9 +363,11 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   dragIcon: { position: 'absolute', right: 12, top: 10 },
-  foregroundCanvas: {
+  foregroundLayers: {
+    ...StyleSheet.absoluteFillObject,
     zIndex: 20,
     elevation: 20,
+    pointerEvents: 'none',
   },
   clock: { color: '#fff', fontSize: 52, fontWeight: '300', letterSpacing: -2 },
   date: { color: '#fff', fontSize: 14, fontWeight: '500', marginTop: 2 },
