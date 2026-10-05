@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { analyzeLayers } from '../services/localDepth';
 import {
   Canvas,
   Fill,
@@ -17,468 +18,6 @@ import {
   Skia,
   useImage,
 } from '@shopify/react-native-skia';
-
-const DEPTH_API = 'https://depth-anything-depth-anything-v2.hf.space';
-const SEGMENTATION_API = 'https://sriiram18-orbinest-ai.hf.space';
-
-
-const MASK_SHADER = Skia.RuntimeEffect.Make(`
-uniform shader image;
-uniform shader mask;
-
-half4 main(float2 xy) {
-  half4 color = image.eval(xy);
-  half4 maskColor = mask.eval(xy);
-  return half4(color.rgb, color.a * maskColor.a);
-}
-`);
-
-const TOOLS = [
-  ['layers-outline', 'Depth'],
-  ['blur', 'Blur'],
-  ['crop', 'Crop'],
-  ['tune-variant', 'Adjust'],
-];
-
-function getDepthPath(file) {
-  const path = typeof file === 'string' ? file : file?.path;
-  if (!path) throw new Error('Depth map was not returned');
-
-  return path.startsWith('http')
-    ? path
-    : DEPTH_API + '/gradio_api/file=' + encodeURIComponent(path);
-}
-
-async function callDepth(imageUri, attempt = 0) {
-  const form = new FormData();
-  form.append('files', {
-    uri: imageUri,
-    name: 'zharph-depth.jpg',
-    type: 'image/jpeg',
-  });
-
-  const uploadResponse = await fetch(DEPTH_API + '/gradio_api/upload', {
-    method: 'POST',
-    body: form,
-  });
-
-  if (!uploadResponse.ok) {
-    if (attempt < 2) return callDepth(imageUri, attempt + 1);
-    throw new Error('Depth upload failed (' + uploadResponse.status + ')');
-  }
-
-  const uploaded = await uploadResponse.json();
-  const uploadedFile = Array.isArray(uploaded) ? uploaded[0] : uploaded;
-  const path = typeof uploadedFile === 'string' ? uploadedFile : uploadedFile?.path;
-
-  if (!path) {
-    if (attempt < 2) return callDepth(imageUri, attempt + 1);
-    throw new Error('Depth upload path missing');
-  }
-
-  const fileData = {
-    path,
-    meta: { _type: 'gradio.FileData' },
-    orig_name: 'zharph-depth.jpg',
-  };
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 150000);
-
-  try {
-    const queueResponse = await fetch(DEPTH_API + '/gradio_api/call/on_submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: [fileData] }),
-      signal: controller.signal,
-    });
-
-    if (!queueResponse.ok) {
-      let message = 'Depth request failed (' + queueResponse.status + ')';
-      try {
-        const errorBody = await queueResponse.json();
-        message = errorBody?.detail || errorBody?.error || message;
-      } catch (parseError) {
-        // Keep the HTTP error message when the server response is not JSON.
-      }
-      throw new Error(String(message));
-    }
-
-    const queueResult = await queueResponse.json();
-    const eventId = queueResult?.event_id;
-
-    if (!eventId) {
-      throw new Error('Depth queue did not return an event ID');
-    }
-
-    const resultResponse = await fetch(
-      DEPTH_API + '/gradio_api/call/on_submit/' + encodeURIComponent(eventId),
-      { method: 'GET', signal: controller.signal },
-    );
-
-    if (!resultResponse.ok) {
-      throw new Error('Depth result failed (' + resultResponse.status + ')');
-    }
-
-    const streamText = await resultResponse.text();
-    const dataLine = streamText
-      .split(/\r?\n/)
-      .filter((line) => line.startsWith('data:'))
-      .map((line) => line.slice(5).trim())
-      .filter(Boolean)
-      .pop();
-
-    if (!dataLine) {
-      throw new Error('Depth queue returned no result');
-    }
-
-    const result = JSON.parse(dataLine);
-    if (result?.error) {
-      throw new Error(String(result.error));
-    }
-
-    const data = result?.data ?? result;
-
-    const findDepthFile = (value) => {
-      if (!value) return null;
-
-      if (typeof value === 'string') {
-        return value.startsWith('http') || value.includes('/') ? value : null;
-      }
-
-      if (Array.isArray(value)) {
-        for (const item of value) {
-          const found = findDepthFile(item);
-          if (found) return found;
-        }
-        return null;
-      }
-
-      if (typeof value === 'object') {
-        if (value.path) return value.path;
-        if (value.url) return value.url;
-        if (value.name && typeof value.name === 'string') return value.name;
-
-        for (const key of ['data', 'value', 'file', 'files', 'output']) {
-          const found = findDepthFile(value[key]);
-          if (found) return found;
-        }
-      }
-
-      return null;
-    };
-
-    const depthPath = findDepthFile(data);
-
-    if (depthPath) {
-      return getDepthPath(depthPath);
-    }
-
-    const serialized = JSON.stringify(data || {});
-    if (/limit|quota|exceed|gpu|rate.?limit|billing|credit/i.test(serialized)) {
-      throw new Error('Depth service usage limit reached');
-    }
-
-    throw new Error('Depth service returned no depth file');
-  } catch (error) {
-    if (attempt < 2) return callDepth(imageUri, attempt + 1);
-    if (error?.name === 'AbortError') {
-      throw new Error('Depth request timed out');
-    }
-    throw error;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-
-async function imageUriToBase64(imageUri) {
-  const response = await fetch(imageUri);
-  if (!response.ok) throw new Error('Could not read selected image');
-
-  const blob = await response.blob();
-
-  return await new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onloadend = () => {
-      const value = String(reader.result || '');
-      const comma = value.indexOf(',');
-      resolve(comma >= 0 ? value.slice(comma + 1) : value);
-    };
-
-    reader.onerror = () => reject(new Error('Could not encode selected image'));
-    reader.readAsDataURL(blob);
-  });
-}
-
-async function callSegmentation(imageUri, attempt = 0) {
-  try {
-    const imageBase64 = await imageUriToBase64(imageUri);
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 150000);
-
-    try {
-      const queueResponse = await fetch(
-        SEGMENTATION_API + '/gradio_api/call/sam2_detect',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            data: [
-              imageBase64,
-              'all distinct visible objects in the image',
-            ],
-          }),
-          signal: controller.signal,
-        },
-      );
-
-      if (!queueResponse.ok) {
-        throw new Error('Layer request failed (' + queueResponse.status + ')');
-      }
-
-      const queueResult = await queueResponse.json();
-      const eventId = queueResult?.event_id;
-
-      if (!eventId) {
-        throw new Error('Layer queue did not return an event ID');
-      }
-
-      const resultResponse = await fetch(
-        SEGMENTATION_API +
-          '/gradio_api/call/sam2_detect/' +
-          encodeURIComponent(eventId),
-        { method: 'GET', signal: controller.signal },
-      );
-
-      if (!resultResponse.ok) {
-        throw new Error('Layer result failed (' + resultResponse.status + ')');
-      }
-
-      const streamText = await resultResponse.text();
-      const dataLine = streamText
-        .split(/\r?\n/)
-        .filter((line) => line.startsWith('data:'))
-        .map((line) => line.slice(5).trim())
-        .filter(Boolean)
-        .pop();
-
-      if (!dataLine) {
-        throw new Error('Layer queue returned no result');
-      }
-
-      const result = JSON.parse(dataLine);
-      if (result?.error) {
-        throw new Error(String(result.error));
-      }
-
-      const data = result?.data ?? result;
-      const jsonText = Array.isArray(data) ? data[0] : data;
-      const payload =
-        typeof jsonText === 'string' ? JSON.parse(jsonText) : jsonText;
-
-      if (!payload?.success) {
-        throw new Error(payload?.error || 'Layer segmentation failed');
-      }
-
-      return payload;
-    } finally {
-      clearTimeout(timeout);
-    }
-  } catch (error) {
-    if (attempt < 2) return callSegmentation(imageUri, attempt + 1);
-
-    if (error?.name === 'AbortError') {
-      throw new Error('Layer request timed out');
-    }
-
-    throw error;
-  }
-}
-
-function crc32(bytes) {
-  let crc = 0xffffffff;
-
-  for (let i = 0; i < bytes.length; i += 1) {
-    crc ^= bytes[i];
-
-    for (let bit = 0; bit < 8; bit += 1) {
-      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
-    }
-  }
-
-  return (crc ^ 0xffffffff) >>> 0;
-}
-
-function adler32(bytes) {
-  let a = 1;
-  let b = 0;
-
-  for (let i = 0; i < bytes.length; i += 1) {
-    a = (a + bytes[i]) % 65521;
-    b = (b + a) % 65521;
-  }
-
-  return (((b << 16) | a) >>> 0);
-}
-
-function writeUint32(bytes, offset, value) {
-  bytes[offset] = (value >>> 24) & 255;
-  bytes[offset + 1] = (value >>> 16) & 255;
-  bytes[offset + 2] = (value >>> 8) & 255;
-  bytes[offset + 3] = value & 255;
-}
-
-function pngChunk(type, data) {
-  const typeBytes = new Uint8Array([
-    type.charCodeAt(0),
-    type.charCodeAt(1),
-    type.charCodeAt(2),
-    type.charCodeAt(3),
-  ]);
-  const chunk = new Uint8Array(8 + data.length + 4);
-  writeUint32(chunk, 0, data.length);
-  chunk.set(typeBytes, 4);
-  chunk.set(data, 8);
-
-  const crcInput = new Uint8Array(typeBytes.length + data.length);
-  crcInput.set(typeBytes, 0);
-  crcInput.set(data, 4);
-
-  writeUint32(chunk, 8 + data.length, crc32(crcInput));
-  return chunk;
-}
-
-function concatBytes(parts) {
-  const total = parts.reduce((sum, part) => sum + part.length, 0);
-  const output = new Uint8Array(total);
-  let offset = 0;
-
-  parts.forEach((part) => {
-    output.set(part, offset);
-    offset += part.length;
-  });
-
-  return output;
-}
-
-function bytesToBase64(bytes) {
-  const alphabet =
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-  let output = '';
-
-  for (let i = 0; i < bytes.length; i += 3) {
-    const a = bytes[i];
-    const b = i + 1 < bytes.length ? bytes[i + 1] : 0;
-    const c = i + 2 < bytes.length ? bytes[i + 2] : 0;
-    const value = (a << 16) | (b << 8) | c;
-
-    output += alphabet[(value >> 18) & 63];
-    output += alphabet[(value >> 12) & 63];
-    output += i + 1 < bytes.length ? alphabet[(value >> 6) & 63] : '=';
-    output += i + 2 < bytes.length ? alphabet[value & 63] : '=';
-  }
-
-  return output;
-}
-
-function maskToPngDataUri(mask, width, height) {
-  const raw = new Uint8Array(height * (width * 4 + 1));
-  let rawOffset = 0;
-
-  for (let y = 0; y < height; y += 1) {
-    raw[rawOffset] = 0;
-    rawOffset += 1;
-
-    const row = mask[y] || [];
-    for (let x = 0; x < width; x += 1) {
-      const alpha = row[x] ? 255 : 0;
-      raw[rawOffset++] = 255;
-      raw[rawOffset++] = 255;
-      raw[rawOffset++] = 255;
-      raw[rawOffset++] = alpha;
-    }
-  }
-
-  const zlibParts = [
-    new Uint8Array([0x78, 0x01]),
-  ];
-
-  for (let offset = 0; offset < raw.length; offset += 65535) {
-    const size = Math.min(65535, raw.length - offset);
-    const block = new Uint8Array(5 + size);
-    block[0] = offset + size >= raw.length ? 1 : 0;
-    block[1] = size & 255;
-    block[2] = (size >>> 8) & 255;
-    const inverse = 65535 - size;
-    block[3] = inverse & 255;
-    block[4] = (inverse >>> 8) & 255;
-    block.set(raw.subarray(offset, offset + size), 5);
-    zlibParts.push(block);
-  }
-
-  const adler = new Uint8Array(4);
-  writeUint32(adler, 0, adler32(raw));
-  zlibParts.push(adler);
-
-  const signature = new Uint8Array([
-    137, 80, 78, 71, 13, 10, 26, 10,
-  ]);
-  const header = new Uint8Array(13);
-  writeUint32(header, 0, width);
-  writeUint32(header, 4, height);
-  header[8] = 8;
-  header[9] = 6;
-
-  const png = concatBytes([
-    signature,
-    pngChunk('IHDR', header),
-    pngChunk('IDAT', concatBytes(zlibParts)),
-    pngChunk('IEND', new Uint8Array(0)),
-  ]);
-
-  return 'data:image/png;base64,' + bytesToBase64(png);
-}
-
-function getLayerLabel(mask, index, width, height) {
-  const [x, y, w, h] = mask.bbox || [0, 0, width, height];
-  const centerX = x + w / 2;
-  const centerY = y + h / 2;
-  const horizontal =
-    centerX < width * 0.34 ? 'Left' : centerX > width * 0.66 ? 'Right' : 'Center';
-  const vertical =
-    centerY < height * 0.34 ? 'Upper' : centerY > height * 0.66 ? 'Lower' : 'Middle';
-
-  return index === 0
-    ? `${vertical} ${horizontal} object`
-    : `${vertical} ${horizontal} object ${index + 1}`;
-}
-
-function buildLayers(payload) {
-  const [width, height] = payload.original_image_size || [];
-  const masks = Array.isArray(payload.masks) ? payload.masks : [];
-
-  if (!width || !height || !masks.length) {
-    throw new Error('Layer response did not contain usable masks');
-  }
-
-  return masks
-    .filter((mask) => typeof mask === 'string' && mask.length > 100)
-    .slice(0, 8)
-    .map((mask, index) => ({
-      id: `ai-layer-${index + 1}`,
-      label: `Object ${index + 1}`,
-      above: false,
-      maskUri: mask.startsWith('data:')
-        ? mask
-        : `data:image/png;base64,${mask}`,
-      width,
-      height,
-    }));
-}
-
 
 function MaskedLayer({ layer, image, previewSize }) {
   const mask = useImage(layer.maskUri);
@@ -508,7 +47,6 @@ function MaskedLayer({ layer, image, previewSize }) {
 export default function EditorScreen({ imageUri, onBack, theme }) {
   const [activeTool, setActiveTool] = useState('Depth');
   const [depthState, setDepthState] = useState('idle');
-  const [depthUri, setDepthUri] = useState(null);
   const [depthMode, setDepthMode] = useState(false);
   const [depthError, setDepthError] = useState(false);
   const [depthErrorMessage, setDepthErrorMessage] = useState('');
@@ -527,36 +65,28 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
     setActiveTool('Depth');
     setDepthMode(true);
     setDepthState('analyzing');
-    setDepthUri(null);
     setDepthError(false);
     setDepthErrorMessage('');
     setLayers([]);
     setSelectedLayer(null);
     setClockPosition({ x: 0, y: 0 });
 
+    const runId = depthRunId.current + 1;
+    depthRunId.current = runId;
+
     try {
-      const runId = depthRunId.current;
-      const depthResult = await callDepth(imageUri);
+      const detectedLayers = await analyzeLayers(imageUri);
 
       if (runId !== depthRunId.current) return;
-
-      const segmentationResult = await callSegmentation(imageUri);
-
-      if (runId !== depthRunId.current) return;
-
-      const detectedLayers = buildLayers(segmentationResult);
-
-      if (!detectedLayers.length) {
-        throw new Error('No usable layers were detected');
-      }
 
       setLayers(detectedLayers);
-      setDepthUri(depthResult);
       setDepthState('ready');
     } catch (error) {
+      if (runId !== depthRunId.current) return;
+
       setDepthState('idle');
       setDepthError(true);
-      setDepthErrorMessage(error?.message || 'Depth analysis failed');
+      setDepthErrorMessage(error?.message || 'Local AI layer analysis failed');
     }
   };
 
@@ -564,7 +94,6 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
     depthRunId.current += 1;
     setDepthMode(false);
     setDepthState('idle');
-    setDepthUri(null);
     setLayers([]);
     setSelectedLayer(null);
     setDepthError(false);
