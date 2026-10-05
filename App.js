@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-unused-styles */
 import React,{createContext,useContext,useMemo,useState} from 'react';
 import {Alert,Dimensions,Image,Pressable,ScrollView,StatusBar,StyleSheet,Switch,Text,View} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
