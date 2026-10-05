@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Dimensions,
   Image,
@@ -19,11 +19,6 @@ const previewHeight = Math.min(height * 0.66, width * 1.48);
 export default function App() {
   const [imageUri, setImageUri] = useState(null);
   const [depthEnabled, setDepthEnabled] = useState(true);
-
-  const previewSource = useMemo(
-    () => (imageUri ? { uri: imageUri } : require('./assets/placeholder.jpg')),
-    [imageUri]
-  );
 
   async function pickWallpaper() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -63,7 +58,14 @@ export default function App() {
 
         <View style={styles.previewWrap}>
           <View style={styles.preview}>
-            <Image source={previewSource} style={styles.wallpaper} resizeMode="cover" />
+            {imageUri ? (
+              <Image source={{ uri: imageUri }} style={styles.wallpaper} resizeMode="cover" />
+            ) : (
+              <LinearGradient
+                colors={['#3C3C42', '#17171A', '#09090A']}
+                style={styles.wallpaper}
+              />
+            )}
 
             <LinearGradient
               pointerEvents="none"
