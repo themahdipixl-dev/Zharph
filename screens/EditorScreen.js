@@ -44,13 +44,16 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
   const clockPan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => depthState === 'ready',
+      onStartShouldSetPanResponderCapture: () => depthState === 'ready',
       onMoveShouldSetPanResponder: () => depthState === 'ready',
+      onMoveShouldSetPanResponderCapture: () => depthState === 'ready',
       onPanResponderGrant: () => clockPosition.extractOffset(),
       onPanResponderMove: (_, gesture) => {
         clockPosition.setValue({ x: gesture.dx, y: gesture.dy });
         setClockLayer(gesture.dy > 40 ? 'behind' : 'top');
       },
       onPanResponderRelease: () => clockPosition.flattenOffset(),
+      onPanResponderTerminate: () => clockPosition.flattenOffset(),
     }),
   ).current;
 
@@ -74,6 +77,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
       <View style={styles.previewArea}>
         <View style={[styles.preview, { backgroundColor: theme.surface }]}>
           <Animated.Image
+            pointerEvents="none"
             source={{ uri: imageUri }}
             style={[
               styles.previewImage,
@@ -110,6 +114,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
           )}
 
           <Animated.View
+            pointerEvents="auto"
             {...clockPan.panHandlers}
             style={[
               styles.lockScreen,
@@ -159,12 +164,6 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
             );
           })}
         </ScrollView>
-
-{depthState === 'ready' && (
-          <Text style={[styles.depthNote, { color: theme.onSurfaceVariant }]}>
-            Standard depth approximation
-          </Text>
-        )}
       </View>
     </SafeAreaView>
   );
@@ -269,7 +268,7 @@ const styles = StyleSheet.create({
   },
   toolsArea: {
     paddingTop: 12,
-    paddingBottom: 22,
+    paddingBottom: 8,
   },
   heading: {
     paddingHorizontal: 20,
