@@ -222,6 +222,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
   const [depthState, setDepthState] = useState('idle');
   const [depthUri, setDepthUri] = useState(null);
   const [depthError, setDepthError] = useState(false);
+  const [depthErrorMessage, setDepthErrorMessage] = useState('');
   const [aboveLayers, setAboveLayers] = useState([]);
   const [selectedLayer, setSelectedLayer] = useState(null);
   const [previewSize, setPreviewSize] = useState({ width: 0, height: 0 });
@@ -237,6 +238,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
     setDepthState('analyzing');
     setDepthUri(null);
     setDepthError(false);
+    setDepthErrorMessage('');
     setAboveLayers([]);
     setSelectedLayer(null);
     clockPosition.x = 0;
@@ -249,6 +251,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
     } catch (error) {
       setDepthState('idle');
       setDepthError(true);
+      setDepthErrorMessage(error?.message || 'Depth analysis failed');
     }
   };
 
@@ -376,7 +379,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
                 color={theme.primary}
               />
               <Text style={[styles.analyzingText, { color: theme.onSurface }]}>
-                Depth failed · Retry
+                Depth failed · Retry${depthErrorMessage ? ` · ${depthErrorMessage}` : ''}
               </Text>
             </Pressable>
           )}
