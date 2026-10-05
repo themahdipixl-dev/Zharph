@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Animated, Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, PanResponder, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const TOOLS = [
@@ -13,6 +13,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
   const [activeTool, setActiveTool] = useState('Depth');
   const [depthState, setDepthState] = useState('idle');
   const [clockLayer, setClockLayer] = useState('top');
+  const clockPosition = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const depthProgress = useRef(new Animated.Value(0)).current;
 
   const runStandardDepth = () => {
@@ -21,6 +22,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
     setActiveTool('Depth');
     setDepthState('analyzing');
     setClockLayer('top');
+    clockPosition.setValue({ x: 0, y: 0 });
     depthProgress.setValue(0);
 
     setTimeout(() => {
@@ -39,13 +41,25 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
     outputRange: [1, 1.035],
   });
 
+  const clockPan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: () => depthState === 'ready',
+      onPanResponderGrant: () => clockPosition.extractOffset(),
+      onPanResponderMove: (_, gesture) => {
+        clockPosition.setValue({ x: gesture.dx, y: gesture.dy });
+        setClockLayer(gesture.dy > 70 ? 'behind' : 'top');
+      },
+      onPanResponderRelease: () => clockPosition.flattenOffset(),
+    }),
+  ).current;
+
   const depthShift = depthProgress.interpolate({
     inputRange: [0, 1],
     outputRange: [0, -4],
   });
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.primaryContainer }]}>
       <View style={styles.header}>
         <Pressable onPress={onBack} style={styles.button}>
           <MaterialCommunityIcons name="arrow-left" size={25} color={theme.onSurface} />
@@ -94,15 +108,19 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
             />
           )}
 
-          <View
+          <Animated.View
+            {...clockPan.panHandlers}
             style={[
               styles.lockScreen,
-              clockLayer === 'behind' && styles.lockScreenBehind,
+              {
+                transform: clockPosition.getTranslateTransform(),
+                zIndex: clockLayer === 'behind' ? 1 : 4,
+              },
             ]}
           >
             <Text style={styles.clock}>09:41</Text>
             <Text style={styles.date}>Monday, October 5</Text>
-          </View>
+          </Animated.View>
 
           {depthState === 'analyzing' && (
             <View style={[styles.analyzing, { backgroundColor: theme.surface }]}>
@@ -142,13 +160,9 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
         </ScrollView>
 
         {depthState === 'ready' && (
-          <Pressable
-            onPress={() => setClockLayer((value) => (value === 'top' ? 'behind' : 'top'))}
-            style={[styles.layerToggle, { backgroundColor: theme.surface }]}
-          >
-            <MaterialCommunityIcons name={clockLayer === 'top' ? 'layers-outline' : 'layers-triple-outline'} size={18} color={theme.primary} />
-            <Text style={[styles.layerToggleText, { color: theme.onSurface }]}>Clock: {clockLayer === 'top' ? 'Front' : 'Behind'}</Text>
-          </Pressable>
+          <Text style={[styles.depthHint, { color: theme.onSurfaceVariant }]}>
+            Drag the clock through the highlighted foreground area.
+          </Text>
         )}
 
         {depthState === 'ready' && (
@@ -206,10 +220,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: '32%',
     top: 0,
-    bottom: 0,
+    height: '38%',
     right: 0,
-    opacity: 0.16,
+    opacity: 0.34,
     zIndex: 2,
+    borderBottomLeftRadius: 80,
+    borderBottomRightRadius: 80,
   },
   depthGlow: {
     position: 'absolute',
@@ -286,19 +302,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 6,
   },
-  layerToggle: {
-    alignSelf: 'center',
-    minHeight: 40,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
+  depthHint: {
+    textAlign: 'center',
+    fontSize: 11,
+    fontWeight: '500',
     marginTop: 10,
-  },
-  layerToggleText: {
-    fontSize: 12,
-    fontWeight: '600',
+    paddingHorizontal: 18,
   },
   depthNote: {
     textAlign: 'center',
