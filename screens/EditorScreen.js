@@ -13,7 +13,6 @@ import {
   Canvas,
   Fill,
   ImageShader,
-  Skia,
   useImage,
 } from '@shopify/react-native-skia';
 
@@ -25,53 +24,6 @@ const TOOLS = [
   ['crop', 'Crop'],
   ['tune-variant', 'Adjust'],
 ];
-
-import React, { useMemo, useRef, useState } from 'react';
-import {
-  PanResponder,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import {
-  Canvas,
-  Fill,
-  ImageShader,
-  Skia,
-  useImage,
-} from '@shopify/react-native-skia';
-
-const DEPTH_API = 'https://depth-anything-depth-anything-v2.hf.space';
-
-const TOOLS = [
-  ['layers-outline', 'Depth'],
-  ['blur', 'Blur'],
-  ['crop', 'Crop'],
-  ['tune-variant', 'Adjust'],
-];
-
-const DEPTH_SHADER = Skia.RuntimeEffect.Make(`
-uniform shader image;
-uniform shader depth;
-uniform float minDepth;
-uniform float maxDepth;
-
-half4 main(float2 xy) {
-  half4 color = image.eval(xy);
-  half4 depthColor = depth.eval(xy);
-
-  float d = depthColor.r;
-  float edge = 0.035;
-  float alpha = smoothstep(minDepth - edge, minDepth + edge, d)
-             * (1.0 - smoothstep(maxDepth - edge, maxDepth + edge, d));
-
-  return half4(color.rgb, color.a * alpha);
-}
-`);
 
 function getDepthPath(file) {
   const path = typeof file === 'string' ? file : file?.path;
@@ -292,19 +244,6 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
     }),
   ).current;
 
-  const renderAboveLayers = () =>
-    layers
-      .filter((layer) => layer.above)
-      .map((layer) => (
-        <LayerMask
-          key={layer.id}
-          image={image}
-          mask={layer.mask}
-          width={previewSize.width}
-          height={previewSize.height}
-        />
-      ));
-
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.primaryContainer }]}>
       <View style={styles.header}>
@@ -335,7 +274,6 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
                 />
               </Fill>
             ) : null}
-            {image && layers.length > 0 && renderAboveLayers()}
           </Canvas>
 
           <View
