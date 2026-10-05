@@ -598,11 +598,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 5,
   },
-  subheading: {
-    paddingHorizontal: 20,
-    fontSize: 12,
-    marginBottom: 9,
-  },
   layers: { paddingHorizontal: 18, gap: 8 },
   layerChip: {
     minWidth: 106,
