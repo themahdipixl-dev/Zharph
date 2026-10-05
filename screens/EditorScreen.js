@@ -12,6 +12,7 @@ const TOOLS = [
 export default function EditorScreen({ imageUri, onBack, theme }) {
   const [activeTool, setActiveTool] = useState('Depth');
   const [depthState, setDepthState] = useState('idle');
+  const [clockLayer, setClockLayer] = useState('top');
   const depthProgress = useRef(new Animated.Value(0)).current;
 
   const runStandardDepth = () => {
@@ -19,6 +20,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
 
     setActiveTool('Depth');
     setDepthState('analyzing');
+    setClockLayer('top');
     depthProgress.setValue(0);
 
     setTimeout(() => {
@@ -85,7 +87,19 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
             />
           )}
 
-          <View style={styles.lockScreen}>
+          {depthState === 'ready' && (
+            <View
+              pointerEvents="none"
+              style={[styles.depthLayer, { backgroundColor: theme.background }]}
+            />
+          )}
+
+          <View
+            style={[
+              styles.lockScreen,
+              clockLayer === 'behind' && styles.lockScreenBehind,
+            ]}
+          >
             <Text style={styles.clock}>09:41</Text>
             <Text style={styles.date}>Monday, October 5</Text>
           </View>
@@ -126,6 +140,16 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
             );
           })}
         </ScrollView>
+
+        {depthState === 'ready' && (
+          <Pressable
+            onPress={() => setClockLayer((value) => (value === 'top' ? 'behind' : 'top'))}
+            style={[styles.layerToggle, { backgroundColor: theme.surface }]}
+          >
+            <MaterialCommunityIcons name={clockLayer === 'top' ? 'layers-outline' : 'layers-triple-outline'} size={18} color={theme.primary} />
+            <Text style={[styles.layerToggleText, { color: theme.onSurface }]}>Clock: {clockLayer === 'top' ? 'Front' : 'Behind'}</Text>
+          </Pressable>
+        )}
 
         {depthState === 'ready' && (
           <Text style={[styles.depthNote, { color: theme.onSurfaceVariant }]}>
@@ -177,6 +201,15 @@ const styles = StyleSheet.create({
   previewImage: {
     width: '100%',
     height: '100%',
+  },
+  depthLayer: {
+    position: 'absolute',
+    left: '32%',
+    top: 0,
+    bottom: 0,
+    right: 0,
+    opacity: 0.16,
+    zIndex: 2,
   },
   depthGlow: {
     position: 'absolute',
@@ -252,6 +285,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     marginTop: 6,
+  },
+  layerToggle: {
+    alignSelf: 'center',
+    minHeight: 40,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginTop: 10,
+  },
+  layerToggleText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   depthNote: {
     textAlign: 'center',
