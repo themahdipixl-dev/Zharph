@@ -16,7 +16,12 @@ export default function BottomNav({ active, onChange, theme }) {
         const selected = active === label;
         return (
           <Pressable key={label} onPress={() => onChange(label)} style={styles.item}>
-            <View style={[styles.iconPill, { backgroundColor: selected ? theme.primaryContainer : 'transparent' }]}>
+            <View
+              style={[
+                styles.iconPill,
+                { backgroundColor: selected ? theme.primaryContainer : 'transparent' },
+              ]}
+            >
               <MaterialCommunityIcons
                 name={icon}
                 size={22}
@@ -50,13 +55,21 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
   },
-  item: { minWidth: 68, alignItems: 'center' },
+  item: {
+    minWidth: 68,
+    alignItems: 'center',
+  },
   iconPill: {
     width: 52,
     height: 32,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
-  label: { marginTop: 3, fontSize: 11, fontWeight: '600' },
+  label: {
+    marginTop: 3,
+    fontSize: 11,
+    fontWeight: '600',
+  },
 });
