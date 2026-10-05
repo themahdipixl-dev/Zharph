@@ -114,16 +114,26 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
           )}
 
           <Animated.View
-            pointerEvents="auto"
+            collapsable={false}
+            pointerEvents="box-only"
             {...clockPan.panHandlers}
             style={[
-              styles.lockScreen,
+              styles.clockWidget,
               {
+                backgroundColor: theme.surface,
+                borderColor: theme.primary,
+                opacity: depthState === 'ready' ? 0.96 : 0.82,
                 transform: clockPosition.getTranslateTransform(),
-                zIndex: clockLayer === 'behind' ? 1 : 4,
+                zIndex: clockLayer === 'behind' ? 1 : 5,
               },
             ]}
           >
+            <MaterialCommunityIcons
+              name="drag-vertical"
+              size={18}
+              color={theme.primary}
+              style={styles.dragIcon}
+            />
             <Text style={styles.clock}>09:41</Text>
             <Text style={styles.date}>Monday, October 5</Text>
           </Animated.View>
@@ -230,12 +240,23 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderRadius: 28,
   },
-  lockScreen: {
+  clockWidget: {
     position: 'absolute',
     top: 42,
-    left: 0,
-    right: 0,
+    left: '50%',
+    width: 190,
+    height: 112,
+    marginLeft: -95,
+    borderRadius: 28,
+    borderWidth: 1.5,
     alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+  },
+  dragIcon: {
+    position: 'absolute',
+    right: 12,
+    top: 10,
   },
   clock: {
     color: '#fff',
@@ -268,7 +289,8 @@ const styles = StyleSheet.create({
   },
   toolsArea: {
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 34,
+    marginBottom: 18,
   },
   heading: {
     paddingHorizontal: 20,
