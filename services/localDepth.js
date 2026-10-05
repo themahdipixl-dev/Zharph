@@ -145,6 +145,39 @@ function colorKey(r, g, b) {
   return r + ',' + g + ',' + b;
 }
 
+function smoothMask(mask, width, height) {
+  const output = new Array(height);
+
+  for (let y = 0; y < height; y += 1) {
+    const row = new Uint8Array(width);
+
+    for (let x = 0; x < width; x += 1) {
+      let visible = 0;
+      let total = 0;
+
+      for (let dy = -1; dy <= 1; dy += 1) {
+        const ny = y + dy;
+        if (ny < 0 || ny >= height) continue;
+
+        const sourceRow = mask[ny];
+        for (let dx = -1; dx <= 1; dx += 1) {
+          const nx = x + dx;
+          if (nx < 0 || nx >= width) continue;
+          total += 1;
+          if (sourceRow[nx] === 1) visible += 1;
+        }
+      }
+
+      // Remove isolated pixels and tiny holes while keeping real object edges.
+      row[x] = visible >= Math.ceil(total * 0.56) ? 1 : 0;
+    }
+
+    output[y] = row;
+  }
+
+  return output;
+}
+
 function humanizeLabel(label) {
   return String(label || 'Object')
     .replace(/[_-]+/g, ' ')
@@ -210,11 +243,13 @@ export async function analyzeLayers(imageUri) {
         mask[y] = row;
       }
 
+      const cleanedMask = smoothMask(mask, width, height);
+
       return {
         id: 'local-ai-layer-' + (index + 1),
         label: humanizeLabel(label),
         above: false,
-        imageUri: layerToPngDataUri(mask, width, height, sourceRgb),
+        imageUri: layerToPngDataUri(cleanedMask, width, height, sourceRgb),
         width,
         height,
       };
