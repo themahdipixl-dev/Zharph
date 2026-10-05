@@ -379,19 +379,18 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
     }),
   ).current;
 
-  const renderLayers = (above) =>
-    LAYERS.filter((layer) => aboveLayers.includes(layer.id) === above).map(
-      (layer) => (
-        <DepthLayer
+  const renderAboveLayers = () =>
+    layers
+      .filter((layer) => layer.above)
+      .map((layer) => (
+        <LayerMask
           key={layer.id}
           image={image}
-          depth={depth}
-          layer={layer}
+          mask={layer.mask}
           width={previewSize.width}
           height={previewSize.height}
         />
-      ),
-    );
+      ));
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.primaryContainer }]}>
@@ -423,7 +422,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
                 />
               </Fill>
             ) : null}
-            {image && depth && aboveLayers.length > 0 && renderLayers(true)}
+            {image && layers.length > 0 && renderAboveLayers()}
           </Canvas>
 
           <View
