@@ -210,70 +210,15 @@ half4 main(float2 xy) {
   );
 }
 
-async function callSegmentation(imageUri, attempt = 0) {
-  const form = new FormData();
-  form.append('files', { uri: imageUri, name: 'zharph-layers.jpg', type: 'image/jpeg' });
-  const uploadResponse = await fetch(SEGMENT_API + '/gradio_api/upload', { method: 'POST', body: form });
-  if (!uploadResponse.ok) {
-    if (attempt < 2) return callSegmentation(imageUri, attempt + 1);
-    throw new Error('Layer upload failed (' + uploadResponse.status + ')');
-  }
-  const uploaded = await uploadResponse.json();
-  const uploadedFile = Array.isArray(uploaded) ? uploaded[0] : uploaded;
-  const path = typeof uploadedFile === 'string' ? uploadedFile : uploadedFile?.path;
-  if (!path) throw new Error('Layer upload path missing');
-
-  const fileData = { path, meta: { _type: 'gradio.FileData' }, orig_name: 'zharph-layers.jpg' };
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 180000);
-
-  try {
-    const queueResponse = await fetch(SEGMENT_API + '/gradio_api/call/generate_auto_masks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        data: [
-          fileData,
-          JSON.stringify({
-            resize_longest: 384,
-            max_masks: MAX_AI_LAYERS,
-            pred_iou_thresh: 0.72,
-            stability_score_thresh: 0.72,
-          }),
-        ],
-      }),
-      signal: controller.signal,
-    });
-    if (!queueResponse.ok) throw new Error('Layer request failed (' + queueResponse.status + ')');
-    const queueResult = await queueResponse.json();
-    const eventId = queueResult?.event_id;
-    if (!eventId) throw new Error('Layer queue did not return an event ID');
-
-    const resultResponse = await fetch(
-      SEGMENT_API + '/gradio_api/call/generate_auto_masks/' + encodeURIComponent(eventId),
-      { method: 'GET', signal: controller.signal },
-    );
-    if (!resultResponse.ok) throw new Error('Layer result failed (' + resultResponse.status + ')');
-
-    const text = await resultResponse.text();
-    const line = text.split(/\r?\n/).filter((v) => v.startsWith('data:')).map((v) => v.slice(5).trim()).filter(Boolean).pop();
-    if (!line) throw new Error('Layer queue returned no result');
-
-    const result = JSON.parse(line);
-    if (result?.error) throw new Error(String(result.error));
-    const data = result?.data ?? result;
-    const payload = Array.isArray(data) ? data[0] : data;
-    const parsed = typeof payload === 'string' ? JSON.parse(payload) : payload;
-    if (!parsed?.success || !Array.isArray(parsed.masks)) throw new Error(parsed?.error || 'AI returned no usable layers');
-    return parsed;
-  } catch (error) {
-    if (attempt < 2) return callSegmentation(imageUri, attempt + 1);
-    if (error?.name === 'AbortError') throw new Error('AI layer analysis timed out');
-    throw error;
-  } finally {
-    clearTimeout(timeout);
-  }
+async function callSegmentation() {
+  return {
+    success: true,
+    masks: [],
+    unavailable: true,
+  };
 }
+
+
 
 export default function EditorScreen({ imageUri, onBack, theme }) {
   const [activeTool, setActiveTool] = useState('Depth');
