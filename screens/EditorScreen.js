@@ -43,11 +43,12 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
 
   const clockPan = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponder: () => depthState === 'ready',
       onMoveShouldSetPanResponder: () => depthState === 'ready',
       onPanResponderGrant: () => clockPosition.extractOffset(),
       onPanResponderMove: (_, gesture) => {
         clockPosition.setValue({ x: gesture.dx, y: gesture.dy });
-        setClockLayer(gesture.dy > 70 ? 'behind' : 'top');
+        setClockLayer(gesture.dy > 40 ? 'behind' : 'top');
       },
       onPanResponderRelease: () => clockPosition.flattenOffset(),
     }),
@@ -159,13 +160,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
           })}
         </ScrollView>
 
-        {depthState === 'ready' && (
-          <Text style={[styles.depthHint, { color: theme.onSurfaceVariant }]}>
-            Drag the clock through the highlighted foreground area.
-          </Text>
-        )}
-
-        {depthState === 'ready' && (
+{depthState === 'ready' && (
           <Text style={[styles.depthNote, { color: theme.onSurfaceVariant }]}>
             Standard depth approximation
           </Text>
@@ -301,18 +296,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     marginTop: 6,
-  },
-  depthHint: {
-    textAlign: 'center',
-    fontSize: 11,
-    fontWeight: '500',
-    marginTop: 10,
-    paddingHorizontal: 18,
-  },
-  depthNote: {
-    textAlign: 'center',
-    fontSize: 11,
-    fontWeight: '500',
-    marginTop: 10,
   },
 });
