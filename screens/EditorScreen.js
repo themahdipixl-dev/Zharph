@@ -19,19 +19,14 @@ import {
 } from '@shopify/react-native-skia';
 
 const DEPTH_API = 'https://depth-anything-depth-anything-v2.hf.space';
+const SEGMENT_API = 'https://dense-captioning-medsam-inference.hf.space';
+const MAX_AI_LAYERS = 8;
 
 const TOOLS = [
   ['layers-outline', 'Depth'],
   ['blur', 'Blur'],
   ['crop', 'Crop'],
   ['tune-variant', 'Adjust'],
-];
-
-const LAYERS = [
-  { id: 'back', label: 'Back', min: 0.00, max: 0.25 },
-  { id: 'middle', label: 'Middle', min: 0.25, max: 0.50 },
-  { id: 'front', label: 'Front', min: 0.50, max: 0.75 },
-  { id: 'closest', label: 'Closest', min: 0.75, max: 1.01 },
 ];
 
 const DEPTH_SHADER = Skia.RuntimeEffect.Make(`
