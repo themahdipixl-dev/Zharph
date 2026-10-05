@@ -26,7 +26,7 @@ const TOOLS = [
   ['tune-variant', 'Adjust'],
 ];
 
-mport React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   PanResponder,
   Pressable,
