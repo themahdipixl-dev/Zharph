@@ -19,6 +19,24 @@ import {
   useImage,
 } from '@shopify/react-native-skia';
 
+const TOOLS = [
+  ['layers-outline', 'Depth'],
+  ['crop', 'Crop'],
+  ['tune-vertical', 'Adjust'],
+  ['palette-outline', 'Color'],
+];
+
+const MASK_SHADER = Skia.RuntimeEffect.Make(`
+  uniform shader image;
+  uniform shader mask;
+
+  half4 main(float2 p) {
+    half4 source = image.eval(p);
+    half4 maskColor = mask.eval(p);
+    return half4(source.rgb, source.a * maskColor.a);
+  }
+`);
+
 function MaskedLayer({ layer, image, previewSize }) {
   const mask = useImage(layer.maskUri);
 
