@@ -254,22 +254,28 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
         callDepth(imageUri),
         callSegmentation(imageUri),
       ]);
-      const sourceHeight = segmentationResult.image_size?.[0] || 1;
-      const sourceWidth = segmentationResult.image_size?.[1] || 1;
-      const masks = segmentationResult.masks
-        .filter((item) => Array.isArray(item.segmentation))
-        .filter((item) => (item.area || 0) / (sourceWidth * sourceHeight) >= 0.02)
-        .slice(0, MAX_AI_LAYERS);
-      if (!masks.length) throw new Error('AI could not find usable layers');
-      setLayers(
-        masks.map((item, index) => ({
-          id: 'ai-' + index,
-          label: 'Layer ' + (index + 1),
-          mask: item.segmentation,
-          score: item.predicted_iou || item.stability_score || 0,
-          above: false,
-        })),
-      );
+
+      if (segmentationResult?.masks?.length) {
+        const sourceHeight = segmentationResult.image_size?.[0] || 1;
+        const sourceWidth = segmentationResult.image_size?.[1] || 1;
+        const masks = segmentationResult.masks
+          .filter((item) => Array.isArray(item.segmentation))
+          .filter((item) => (item.area || 0) / (sourceWidth * sourceHeight) >= 0.02)
+          .slice(0, MAX_AI_LAYERS);
+
+        setLayers(
+          masks.map((item, index) => ({
+            id: 'ai-' + index,
+            label: 'Layer ' + (index + 1),
+            mask: item.segmentation,
+            score: item.predicted_iou || item.stability_score || 0,
+            above: false,
+          })),
+        );
+      } else {
+        setLayers([]);
+      }
+
       setDepthUri(depthResult);
       setDepthState('ready');
     } catch (error) {
