@@ -72,8 +72,14 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
   const [selectedLayer, setSelectedLayer] = useState(null);
   const [previewSize, setPreviewSize] = useState({ width: 0, height: 0 });
   const [clockPosition, setClockPosition] = useState({ x: 0, y: 0 });
+  const clockPositionRef = useRef({ x: 0, y: 0 });
   const clockStart = useRef({ x: 0, y: 0 });
   const depthRunId = useRef(0);
+
+  const setClockPositionSafe = (position) => {
+    clockPositionRef.current = position;
+    setClockPosition(position);
+  };
 
   const image = useImage(imageUri);
 
@@ -87,7 +93,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
     setDepthErrorMessage('');
     setLayers([]);
     setSelectedLayer(null);
-    setClockPosition({ x: 0, y: 0 });
+    setClockPositionSafe({ x: 0, y: 0 });
 
     const runId = depthRunId.current + 1;
     depthRunId.current = runId;
@@ -116,7 +122,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
     setSelectedLayer(null);
     setDepthError(false);
     setDepthErrorMessage('');
-    setClockPosition({ x: 0, y: 0 });
+    setClockPositionSafe({ x: 0, y: 0 });
   };
 
   const confirmDepth = () => {
@@ -143,10 +149,10 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
       onMoveShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponderCapture: () => true,
       onPanResponderGrant: () => {
-        clockStart.current = { ...clockPosition };
+        clockStart.current = { ...clockPositionRef.current };
       },
       onPanResponderMove: (_, gesture) => {
-        setClockPosition({
+        setClockPositionSafe({
           x: clockStart.current.x + gesture.dx,
           y: clockStart.current.y + gesture.dy,
         });
@@ -210,7 +216,6 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
             <Text style={styles.clock}>09:41</Text>
             <Text style={styles.date}>Monday, October 5</Text>
           </View>
-
 
           {depthState === 'ready' && layers.some((layer) => layer.above) && (
             <Canvas
@@ -316,45 +321,45 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
         </View>
       ) : (
         <View style={styles.toolsArea}>
-        <Text style={[styles.heading, { color: theme.onSurface }]}>Customize</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tools}
-        >
-          {TOOLS.map(([icon, label]) => {
-            const selected = activeTool === label;
+          <Text style={[styles.heading, { color: theme.onSurface }]}>Customize</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tools}
+          >
+            {TOOLS.map(([icon, label]) => {
+              const selected = activeTool === label;
 
-            return (
-              <Pressable
-                key={label}
-                onPress={label === 'Depth' ? runDepth : () => setActiveTool(label)}
-                style={styles.tool}
-              >
-                <View
-                  style={[
-                    styles.toolIcon,
-                    { backgroundColor: selected ? theme.primary : theme.surface },
-                  ]}
+              return (
+                <Pressable
+                  key={label}
+                  onPress={label === 'Depth' ? runDepth : () => setActiveTool(label)}
+                  style={styles.tool}
                 >
-                  <MaterialCommunityIcons
-                    name={icon}
-                    size={23}
-                    color={selected ? theme.onPrimary : theme.onSurfaceVariant}
-                  />
-                </View>
-                <Text
-                  style={[
-                    styles.toolLabel,
-                    { color: selected ? theme.primary : theme.onSurfaceVariant },
-                  ]}
-                >
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+                  <View
+                    style={[
+                      styles.toolIcon,
+                      { backgroundColor: selected ? theme.primary : theme.surface },
+                    ]}
+                  >
+                    <MaterialCommunityIcons
+                      name={icon}
+                      size={23}
+                      color={selected ? theme.onPrimary : theme.onSurfaceVariant}
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.toolLabel,
+                      { color: selected ? theme.primary : theme.onSurfaceVariant },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
         </View>
       )}
     </SafeAreaView>
