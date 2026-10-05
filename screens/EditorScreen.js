@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   PanResponder,
   Pressable,
@@ -524,7 +524,6 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
   const depthRunId = useRef(0);
 
   const image = useImage(imageUri);
-  const depth = useImage(depthUri);
 
   const runDepth = async () => {
     if (depthState === 'analyzing') return;
@@ -644,21 +643,6 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
             ) : null}
           </Canvas>
 
-
-          {depthState === 'ready' && layers.some((layer) => layer.above) && (
-            <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-              {layers
-                .filter((layer) => layer.above)
-                .map((layer) => (
-                  <MaskedLayer
-                    key={layer.id}
-                    layer={layer}
-                    image={image}
-                    previewSize={previewSize}
-                  />
-                ))}
-            </Canvas>
-          )}
           <View
             {...clockPan.panHandlers}
             style={[
@@ -683,6 +667,22 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
             <Text style={styles.clock}>09:41</Text>
             <Text style={styles.date}>Monday, October 5</Text>
           </View>
+
+
+          {depthState === 'ready' && layers.some((layer) => layer.above) && (
+            <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+              {layers
+                .filter((layer) => layer.above)
+                .map((layer) => (
+                  <MaskedLayer
+                    key={layer.id}
+                    layer={layer}
+                    image={image}
+                    previewSize={previewSize}
+                  />
+                ))}
+            </Canvas>
+          )}
 
           {depthState === 'analyzing' && (
             <View style={[styles.analyzing, { backgroundColor: theme.surface }]}>
