@@ -19,7 +19,9 @@ export default function BottomNav({ active, onChange, theme }) {
             <View
               style={[
                 styles.iconPill,
-                { backgroundColor: selected ? theme.primaryContainer : 'transparent' },
+                {
+                  backgroundColor: selected ? theme.primaryContainer : theme.surfaceHigh,
+                },
               ]}
             >
               <MaterialCommunityIcons
