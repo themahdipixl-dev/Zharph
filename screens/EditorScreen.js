@@ -35,7 +35,6 @@ function MaskedLayer({ layer, image, previewSize }) {
 
   return (
     <Mask
-      mode="luminance"
       mask={
         <Image
           image={mask}
@@ -495,5 +494,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  toolLabel: { fontSize: 11, fontWeight: '600' },
+  toolLabel: { fontSize: 11, fontWeight: '600', marginTop: 6 },
 });
