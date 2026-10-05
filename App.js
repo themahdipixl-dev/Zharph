@@ -9,31 +9,31 @@ import {
   Text,
   View,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 
 const { width } = Dimensions.get('window');
-const GAP = 10;
-const HORIZONTAL_PADDING = 16;
-const CARD_SIZE = (width - HORIZONTAL_PADDING * 2 - GAP * 2) / 3;
+const PADDING = 18;
+const GAP = 9;
+const CARD_WIDTH = (width - PADDING * 2 - GAP * 2) / 3;
 
-const TABS = ['Featured', 'Nature', 'Cities', 'Minimal'];
+const TABS = ['All', 'Nature', 'Abstract', 'Architecture'];
 
 const DEFAULT_WALLPAPERS = [
-  { id: '1', title: 'Aurora', colors: ['#23354D', '#101A2B'], icon: '✦' },
-  { id: '2', title: 'Mountain', colors: ['#52677C', '#1D2935'], icon: '⌁' },
-  { id: '3', title: 'Moon', colors: ['#3A3A46', '#121218'], icon: '☾' },
-  { id: '4', title: 'Ocean', colors: ['#245B6C', '#102B38'], icon: '≈' },
-  { id: '5', title: 'Dusk', colors: ['#684F63', '#211B2A'], icon: '◐' },
-  { id: '6', title: 'Mist', colors: ['#69737A', '#252B30'], icon: '◌' },
-  { id: '7', title: 'Desert', colors: ['#80674D', '#30251D'], icon: '◇' },
-  { id: '8', title: 'Forest', colors: ['#3B5948', '#14231C'], icon: '♧' },
+  { id: '1', title: 'Aurora', category: 'Nature', colors: ['#405A63', '#11191D'], icon: '✦' },
+  { id: '2', title: 'Summit', category: 'Nature', colors: ['#71808A', '#202B31'], icon: '⌁' },
+  { id: '3', title: 'Lunar', category: 'Abstract', colors: ['#4A4750', '#141419'], icon: '○' },
+  { id: '4', title: 'Tide', category: 'Nature', colors: ['#397181', '#102A31'], icon: '≈' },
+  { id: '5', title: 'Noir', category: 'Abstract', colors: ['#56515B', '#17151A'], icon: '◐' },
+  { id: '6', title: 'Haze', category: 'Abstract', colors: ['#7A7B78', '#292B2B'], icon: '◌' },
+  { id: '7', title: 'Dune', category: 'Nature', colors: ['#806B58', '#2B211A'], icon: '◇' },
+  { id: '8', title: 'Pine', category: 'Nature', colors: ['#486252', '#14201A'], icon: '♧' },
+  { id: '9', title: 'Grid', category: 'Architecture', colors: ['#59636A', '#1C2226'], icon: '＋' },
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState(TABS[0]);
+  const [activeTab, setActiveTab] = useState('All');
   const [selectedWallpaper, setSelectedWallpaper] = useState(null);
   const [imageUri, setImageUri] = useState(null);
 
@@ -49,7 +49,7 @@ export default function App() {
 
     if (!result.canceled && result.assets?.[0]?.uri) {
       setImageUri(result.assets[0].uri);
-      setSelectedWallpaper({ id: 'custom', title: 'My photo', custom: true });
+      setSelectedWallpaper({ id: 'custom', title: 'Your photo', custom: true });
     }
   }
 
@@ -58,26 +58,33 @@ export default function App() {
     setSelectedWallpaper(wallpaper);
   }
 
+  const wallpapers =
+    activeTab === 'All'
+      ? DEFAULT_WALLPAPERS
+      : DEFAULT_WALLPAPERS.filter((item) => item.category === activeTab);
+
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
-      <LinearGradient
-        colors={['#151518', '#0C0C0E', '#070708']}
-        style={StyleSheet.absoluteFill}
-      />
 
       <SafeAreaView style={styles.safe}>
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.hero}>
-            <Text style={styles.eyebrow}>ZHARPH</Text>
-            <Text style={styles.title}>{`Give your wallpaper\nsome depth.`}</Text>
-            <Text style={styles.description}>
-              Choose a wallpaper and turn it into a layered lock-screen experience.
-            </Text>
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.kicker}>ZHARPH</Text>
+              <Text style={styles.title}>Find your depth.</Text>
+            </View>
+            <Pressable style={styles.headerButton} onPress={pickWallpaper}>
+              <Text style={styles.headerButtonText}>＋</Text>
+            </Pressable>
           </View>
+
+          <Text style={styles.intro}>
+            Wallpapers designed to become something deeper.
+          </Text>
 
           <ScrollView
             horizontal
@@ -90,54 +97,57 @@ export default function App() {
                 <Pressable
                   key={tab}
                   onPress={() => setActiveTab(tab)}
-                  style={[styles.tab, active && styles.tabActive]}
+                  style={styles.tab}
                 >
                   <Text style={[styles.tabText, active && styles.tabTextActive]}>
                     {tab}
                   </Text>
+                  {active && <View style={styles.tabLine} />}
                 </Pressable>
               );
             })}
           </ScrollView>
 
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>
+              {activeTab === 'All' ? 'Curated wallpapers' : activeTab}
+            </Text>
+            <Text style={styles.sectionCount}>{wallpapers.length} works</Text>
+          </View>
+
           <View style={styles.grid}>
             <Pressable style={styles.addCard} onPress={pickWallpaper}>
-              <BlurView intensity={24} tint="dark" style={styles.addBlur}>
-                <View style={styles.plusCircle}>
-                  <Text style={styles.plus}>＋</Text>
-                </View>
+              <View style={styles.addInner}>
+                <Text style={styles.addPlus}>＋</Text>
                 <Text style={styles.addTitle}>Your photo</Text>
-                <Text style={styles.addCaption}>Choose from gallery</Text>
-              </BlurView>
+                <Text style={styles.addCaption}>Create from gallery</Text>
+              </View>
             </Pressable>
 
-            {DEFAULT_WALLPAPERS.map((wallpaper) => (
+            {wallpapers.map((wallpaper) => (
               <Pressable
                 key={wallpaper.id}
                 onPress={() => openDefaultWallpaper(wallpaper)}
                 style={styles.card}
               >
-                <LinearGradient colors={wallpaper.colors} style={styles.cardImage}>
-                  <View style={styles.art}>
-                    <Text style={styles.artIcon}>{wallpaper.icon}</Text>
+                <LinearGradient colors={wallpaper.colors} style={styles.cardArt}>
+                  <Text style={styles.artIcon}>{wallpaper.icon}</Text>
+                  <View style={styles.cardBottom}>
+                    <Text style={styles.cardTitle}>{wallpaper.title}</Text>
+                    <Text style={styles.cardCategory}>{wallpaper.category}</Text>
                   </View>
-                  <LinearGradient
-                    colors={['transparent', 'rgba(0,0,0,0.60)']}
-                    style={styles.cardShade}
-                  />
-                  <Text style={styles.cardTitle}>{wallpaper.title}</Text>
                 </LinearGradient>
               </Pressable>
             ))}
           </View>
         </ScrollView>
 
-        <BlurView intensity={42} tint="dark" style={styles.bottomNav}>
-          <NavButton icon="⌂" label="Home" active />
-          <NavButton icon="✦" label="Depth" />
+        <View style={styles.bottomNav}>
+          <NavButton icon="⌂" label="Explore" active />
+          <NavButton icon="◒" label="Create" />
           <NavButton icon="♡" label="Saved" />
-          <NavButton icon="⚙" label="Settings" />
-        </BlurView>
+          <NavButton icon="⋯" label="More" />
+        </View>
       </SafeAreaView>
 
       {selectedWallpaper && (
@@ -166,16 +176,16 @@ function NavButton({ icon, label, active }) {
 function EditorScreen({ imageUri, wallpaper, onClose }) {
   return (
     <View style={styles.editorOverlay}>
-      <LinearGradient
-        colors={['#17171A', '#09090A']}
-        style={StyleSheet.absoluteFill}
-      />
+      <StatusBar style="light" />
       <SafeAreaView style={styles.editorSafe}>
         <View style={styles.editorHeader}>
-          <Pressable onPress={onClose} style={styles.closeButton}>
-            <Text style={styles.closeText}>‹</Text>
+          <Pressable onPress={onClose} style={styles.backButton}>
+            <Text style={styles.backText}>‹</Text>
           </Pressable>
-          <Text style={styles.editorTitle}>Edit wallpaper</Text>
+          <View>
+            <Text style={styles.editorKicker}>EDITOR</Text>
+            <Text style={styles.editorTitle}>{wallpaper.title}</Text>
+          </View>
           <View style={styles.headerSpacer} />
         </View>
 
@@ -184,17 +194,14 @@ function EditorScreen({ imageUri, wallpaper, onClose }) {
             {imageUri ? (
               <Image source={{ uri: imageUri }} style={styles.editorImage} resizeMode="cover" />
             ) : (
-              <LinearGradient
-                colors={wallpaper.colors}
-                style={styles.editorImage}
-              >
+              <LinearGradient colors={wallpaper.colors} style={styles.editorImage}>
                 <Text style={styles.editorArt}>{wallpaper.icon}</Text>
               </LinearGradient>
             )}
 
             <LinearGradient
               pointerEvents="none"
-              colors={['rgba(0,0,0,0.20)', 'transparent', 'rgba(0,0,0,0.48)']}
+              colors={['rgba(0,0,0,0.08)', 'transparent', 'rgba(0,0,0,0.45)']}
               style={StyleSheet.absoluteFill}
             />
 
@@ -205,272 +212,392 @@ function EditorScreen({ imageUri, wallpaper, onClose }) {
           </View>
         </View>
 
-        <BlurView intensity={40} tint="dark" style={styles.editorControls}>
-          <Text style={styles.controlsTitle}>Depth</Text>
-          <Text style={styles.controlsCaption}>
-            These controls only appear after you choose a wallpaper.
-          </Text>
-
-          <View style={styles.controlRow}>
-            <ControlChip icon="✦" label="Depth" active />
-            <ControlChip icon="⌁" label="Position" />
-            <ControlChip icon="◒" label="Clock" />
+        <View style={styles.editorPanel}>
+          <View style={styles.panelHeading}>
+            <View>
+              <Text style={styles.panelKicker}>LAYOUT</Text>
+              <Text style={styles.panelTitle}>Make it yours.</Text>
+            </View>
+            <Text style={styles.panelStep}>01</Text>
           </View>
 
-          <Pressable style={styles.applyButton}>
-            <LinearGradient colors={['#FFFFFF', '#DCDCDC']} style={styles.applyGradient}>
-              <Text style={styles.applyText}>Continue</Text>
-            </LinearGradient>
+          <View style={styles.controlRow}>
+            <ControlChip label="Depth" active />
+            <ControlChip label="Position" />
+            <ControlChip label="Clock" />
+          </View>
+
+          <Pressable style={styles.continueButton}>
+            <Text style={styles.continueText}>Continue</Text>
+            <Text style={styles.continueArrow}>→</Text>
           </Pressable>
-        </BlurView>
+        </View>
       </SafeAreaView>
     </View>
   );
 }
 
-function ControlChip({ icon, label, active }) {
+function ControlChip({ label, active }) {
   return (
     <Pressable style={[styles.controlChip, active && styles.controlChipActive]}>
-      <Text style={styles.controlIcon}>{icon}</Text>
-      <Text style={styles.controlLabel}>{label}</Text>
+      <Text style={[styles.controlLabel, active && styles.controlLabelActive]}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#080809' },
-  safe: { flex: 1 },
+  root: {
+    flex: 1,
+    backgroundColor: '#0A0A0A',
+  },
+  safe: {
+    flex: 1,
+  },
   content: {
-    paddingHorizontal: HORIZONTAL_PADDING,
-    paddingTop: 18,
-    paddingBottom: 110,
+    paddingHorizontal: PADDING,
+    paddingTop: 12,
+    paddingBottom: 112,
   },
-  hero: {
-    paddingHorizontal: 3,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
     paddingTop: 8,
-    paddingBottom: 22,
   },
-  eyebrow: {
-    color: 'rgba(255,255,255,0.45)',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 2.2,
+  kicker: {
+    color: '#7E8A8F',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 3,
     marginBottom: 8,
   },
   title: {
-    color: '#FFFFFF',
-    fontSize: 32,
-    lineHeight: 36,
+    color: '#F4F3EF',
+    fontSize: 34,
+    lineHeight: 38,
     fontWeight: '700',
-    letterSpacing: -1.2,
+    letterSpacing: -1.4,
   },
-  description: {
-    color: 'rgba(255,255,255,0.52)',
+  intro: {
+    color: '#777878',
     fontSize: 13,
     lineHeight: 19,
-    marginTop: 10,
-    maxWidth: 330,
+    maxWidth: 300,
+    marginTop: 12,
   },
-  tabs: { gap: 8, paddingBottom: 18 },
-  tab: {
-    height: 38,
-    paddingHorizontal: 16,
-    borderRadius: 19,
+  headerButton: {
+    width: 42,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.055)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderBottomWidth: 1,
+    borderBottomColor: '#4E5355',
   },
-  tabActive: {
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderColor: 'rgba(255,255,255,0.20)',
+  headerButtonText: {
+    color: '#F4F3EF',
+    fontSize: 27,
+    fontWeight: '300',
+    marginTop: -2,
   },
-  tabText: { color: 'rgba(255,255,255,0.48)', fontSize: 12, fontWeight: '600' },
-  tabTextActive: { color: '#FFFFFF' },
+  tabs: {
+    gap: 23,
+    paddingTop: 30,
+    paddingBottom: 17,
+  },
+  tab: {
+    paddingVertical: 5,
+    position: 'relative',
+  },
+  tabText: {
+    color: '#606263',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  tabTextActive: {
+    color: '#F4F3EF',
+  },
+  tabLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 1,
+    backgroundColor: '#E7E5DE',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    color: '#D8D7D1',
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  sectionCount: {
+    color: '#555758',
+    fontSize: 10,
+    fontWeight: '600',
+  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: GAP,
   },
   card: {
-    width: CARD_SIZE,
-    height: CARD_SIZE * 1.34,
-    borderRadius: 20,
+    width: CARD_WIDTH,
+    height: CARD_WIDTH * 1.48,
+    borderRadius: 4,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.10)',
-    backgroundColor: '#151517',
+    backgroundColor: '#161717',
   },
-  cardImage: { flex: 1, justifyContent: 'flex-end', overflow: 'hidden' },
-  cardShade: { ...StyleSheet.absoluteFillObject },
-  art: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  cardArt: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   artIcon: {
-    color: 'rgba(255,255,255,0.58)',
-    fontSize: 42,
-    fontWeight: '300',
+    color: 'rgba(255,255,255,0.48)',
+    fontSize: 40,
+    fontWeight: '200',
+  },
+  cardBottom: {
+    position: 'absolute',
+    left: 10,
+    right: 10,
+    bottom: 9,
   },
   cardTitle: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '650',
-    padding: 11,
-    zIndex: 2,
+    color: '#F4F3EF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  cardCategory: {
+    color: 'rgba(255,255,255,0.48)',
+    fontSize: 8,
+    marginTop: 2,
   },
   addCard: {
-    width: CARD_SIZE,
-    height: CARD_SIZE * 1.34,
-    borderRadius: 20,
-    overflow: 'hidden',
+    width: CARD_WIDTH,
+    height: CARD_WIDTH * 1.48,
+    borderRadius: 4,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    backgroundColor: 'rgba(255,255,255,0.055)',
+    borderStyle: 'dashed',
+    borderColor: '#414445',
+    backgroundColor: '#0E0F0F',
   },
-  addBlur: {
+  addInner: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 10,
   },
-  plusCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.11)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
+  addPlus: {
+    color: '#D9D8D2',
+    fontSize: 28,
+    fontWeight: '200',
   },
-  plus: { color: '#FFFFFF', fontSize: 29, fontWeight: '300', marginTop: -2 },
-  addTitle: { color: '#FFFFFF', fontSize: 12, fontWeight: '650', marginTop: 10 },
+  addTitle: {
+    color: '#D9D8D2',
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 9,
+  },
   addCaption: {
-    color: 'rgba(255,255,255,0.40)',
-    fontSize: 9,
-    marginTop: 4,
-    textAlign: 'center',
+    color: '#555758',
+    fontSize: 8,
+    marginTop: 3,
   },
   bottomNav: {
     position: 'absolute',
-    left: 12,
-    right: 12,
+    left: 18,
+    right: 18,
     bottom: 10,
-    height: 68,
-    borderRadius: 25,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.13)',
-    backgroundColor: 'rgba(255,255,255,0.075)',
+    height: 58,
+    backgroundColor: '#111212',
+    borderTopWidth: 1,
+    borderTopColor: '#2C2E2F',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
   },
-  navButton: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 3 },
-  navIcon: { color: 'rgba(255,255,255,0.42)', fontSize: 20 },
-  navIconActive: { color: '#FFFFFF' },
-  navLabel: { color: 'rgba(255,255,255,0.40)', fontSize: 9, fontWeight: '600' },
-  navLabelActive: { color: '#FFFFFF' },
+  navButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  navIcon: {
+    color: '#555758',
+    fontSize: 18,
+  },
+  navIconActive: {
+    color: '#F4F3EF',
+  },
+  navLabel: {
+    color: '#555758',
+    fontSize: 8,
+    fontWeight: '600',
+  },
+  navLabelActive: {
+    color: '#F4F3EF',
+  },
   editorOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 10,
-    backgroundColor: '#09090A',
+    backgroundColor: '#0A0A0A',
   },
-  editorSafe: { flex: 1, paddingHorizontal: 16 },
+  editorSafe: {
+    flex: 1,
+    paddingHorizontal: 18,
+  },
   editorHeader: {
-    height: 58,
+    height: 64,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  closeButton: {
+  backButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    justifyContent: 'center',
+  },
+  backText: {
+    color: '#F4F3EF',
+    fontSize: 35,
+    fontWeight: '200',
+    marginTop: -5,
+  },
+  editorKicker: {
+    color: '#666A6A',
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 2,
+    textAlign: 'center',
+  },
+  editorTitle: {
+    color: '#F4F3EF',
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  editorPreviewWrap: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.09)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.13)',
   },
-  closeText: { color: '#FFFFFF', fontSize: 32, lineHeight: 34, fontWeight: '200', marginTop: -4 },
-  editorTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  headerSpacer: { width: 40 },
-  editorPreviewWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   editorPreview: {
-    width: width - 48,
-    height: Math.min(width * 1.35, 560),
-    borderRadius: 30,
+    width: width - 58,
+    height: Math.min(width * 1.42, 570),
+    borderRadius: 5,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
-    backgroundColor: '#18181A',
+    backgroundColor: '#181818',
   },
-  editorImage: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
-  editorArt: { color: 'rgba(255,255,255,0.58)', fontSize: 80 },
+  editorImage: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editorArt: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 80,
+  },
   editorClock: {
     position: 'absolute',
-    top: 38,
+    top: 34,
     left: 0,
     right: 0,
     alignItems: 'center',
   },
   editorTime: {
     color: '#FFFFFF',
-    fontSize: 65,
-    lineHeight: 70,
+    fontSize: 63,
+    lineHeight: 68,
     fontWeight: '300',
     letterSpacing: -3,
   },
   editorDate: {
-    color: 'rgba(255,255,255,0.90)',
-    fontSize: 13,
+    color: 'rgba(255,255,255,0.88)',
+    fontSize: 12,
     fontWeight: '500',
+    marginTop: 2,
+  },
+  editorPanel: {
+    paddingTop: 17,
+    paddingBottom: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#2B2D2E',
+  },
+  panelHeading: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+  },
+  panelKicker: {
+    color: '#6B7070',
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 2,
+  },
+  panelTitle: {
+    color: '#E4E3DD',
+    fontSize: 19,
+    fontWeight: '700',
     marginTop: 3,
   },
-  editorControls: {
-    borderRadius: 27,
-    overflow: 'hidden',
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.13)',
-    backgroundColor: 'rgba(255,255,255,0.07)',
-  },
-  controlsTitle: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
-  controlsCaption: {
-    color: 'rgba(255,255,255,0.44)',
+  panelStep: {
+    color: '#555858',
     fontSize: 11,
-    lineHeight: 16,
-    marginTop: 4,
+    fontWeight: '700',
   },
-  controlRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
+  controlRow: {
+    flexDirection: 'row',
+    gap: 7,
+    marginTop: 13,
+  },
   controlChip: {
     flex: 1,
-    minHeight: 54,
-    borderRadius: 17,
+    height: 43,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.055)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: '#2C2F30',
+    backgroundColor: '#111212',
   },
   controlChipActive: {
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    borderColor: 'rgba(255,255,255,0.20)',
+    borderColor: '#858B8B',
+    backgroundColor: '#1A1C1C',
   },
-  controlIcon: { color: '#FFFFFF', fontSize: 17 },
   controlLabel: {
-    color: 'rgba(255,255,255,0.60)',
-    fontSize: 9,
+    color: '#626565',
+    fontSize: 10,
     fontWeight: '600',
-    marginTop: 3,
   },
-  applyButton: {
-    height: 48,
-    borderRadius: 17,
-    overflow: 'hidden',
-    marginTop: 10,
+  controlLabelActive: {
+    color: '#F4F3EF',
   },
-  applyGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  applyText: { color: '#101012', fontSize: 13, fontWeight: '750' },
+  continueButton: {
+    height: 46,
+    marginTop: 9,
+    backgroundColor: '#E8E6DE',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  continueText: {
+    color: '#111212',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  continueArrow: {
+    color: '#111212',
+    fontSize: 17,
+    marginLeft: 10,
+    marginTop: -1,
+  },
 });
