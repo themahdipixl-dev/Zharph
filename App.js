@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import HomeScreen from './src/screens/HomeScreen';
-import EditorScreen from './src/screens/EditorScreen';
-import BottomNav from './src/components/BottomNav';
-import { useAppTheme } from './src/theme';
+import HomeScreen from './screens/HomeScreen';
+import EditorScreen from './screens/EditorScreen';
+import BottomNav from './components/BottomNav';
+import { useAppTheme } from './theme';
 
 export default function App() {
   const theme = useAppTheme();
