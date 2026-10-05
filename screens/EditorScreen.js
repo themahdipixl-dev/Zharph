@@ -3,6 +3,8 @@ import { Animated, PanResponder, Pressable, SafeAreaView, ScrollView, StyleSheet
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const DEPTH_API = 'https://depth-anything-depth-anything-v2.hf.space';
+const RMBG_API = 'https://briaai-bria-rmbg-2-0.hf.space';
+
 const TOOLS = [
   ['layers-outline', 'Depth'],
   ['blur', 'Blur'],
@@ -10,42 +12,41 @@ const TOOLS = [
   ['tune-variant', 'Adjust'],
 ];
 
-async function runAIDepth(imageUri) {
+async function callSpace(api, endpoint, imageUri, name) {
   const form = new FormData();
-  form.append('files', { uri: imageUri, name: 'zharph-depth.jpg', type: 'image/jpeg' });
+  form.append('files', { uri: imageUri, name, type: 'image/jpeg' });
 
-  const uploadResponse = await fetch(DEPTH_API + '/gradio_api/upload', {
+  const uploadResponse = await fetch(api + '/gradio_api/upload', {
     method: 'POST',
     body: form,
   });
-
-  if (!uploadResponse.ok) throw new Error('Depth upload failed');
+  if (!uploadResponse.ok) throw new Error('Upload failed');
 
   const uploaded = await uploadResponse.json();
-  const uploadedPath = Array.isArray(uploaded) ? uploaded[0] : uploaded;
+  const path = Array.isArray(uploaded) ? uploaded[0] : uploaded;
 
-  const callResponse = await fetch(DEPTH_API + '/gradio_api/call/on_submit', {
+  const callResponse = await fetch(api + '/gradio_api/call/' + endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ data: [{ path: uploadedPath }] }),
+    body: JSON.stringify({ data: [{ path }] }),
   });
-
-  if (!callResponse.ok) throw new Error('Depth request failed');
+  if (!callResponse.ok) throw new Error('Request failed');
 
   const { event_id: eventId } = await callResponse.json();
-  const resultResponse = await fetch(DEPTH_API + '/gradio_api/call/on_submit/' + eventId);
+  const resultResponse = await fetch(api + '/gradio_api/call/' + endpoint + '/' + eventId);
+  if (!resultResponse.ok) throw new Error('Result failed');
 
-  if (!resultResponse.ok) throw new Error('Depth result failed');
+  const stream = await resultResponse.text();
+  const match = stream.match(/event: complete\s+data: (.+)/);
+  if (!match) throw new Error('Incomplete result');
 
-  const streamText = await resultResponse.text();
-  const completeMatch = streamText.match(/event: complete\s+data: (.+)/);
+  return JSON.parse(match[1]);
+}
 
-  if (!completeMatch) throw new Error('Depth result was incomplete');
-
-  const result = JSON.parse(completeMatch[1]);
+async function runAIDepth(imageUri) {
+  const result = await callSpace(DEPTH_API, 'on_submit', imageUri, 'zharph-depth.jpg');
   const grayFile = result && result[1];
   const grayPath = typeof grayFile === 'string' ? grayFile : grayFile && grayFile.path;
-
   if (!grayPath) throw new Error('Depth map was not returned');
 
   return grayPath.startsWith('http')
@@ -53,10 +54,22 @@ async function runAIDepth(imageUri) {
     : DEPTH_API + '/gradio_api/file=' + encodeURIComponent(grayPath);
 }
 
+async function runForegroundSegmentation(imageUri) {
+  const result = await callSpace(RMBG_API, 'image', imageUri, 'zharph-foreground.jpg');
+  const outputFile = result && result[1];
+  const outputPath = typeof outputFile === 'string' ? outputFile : outputFile && outputFile.path;
+  if (!outputPath) throw new Error('Foreground image was not returned');
+
+  return outputPath.startsWith('http')
+    ? outputPath
+    : RMBG_API + '/gradio_api/file=' + encodeURIComponent(outputPath);
+}
+
 export default function EditorScreen({ imageUri, onBack, theme }) {
   const [activeTool, setActiveTool] = useState('Depth');
   const [depthState, setDepthState] = useState('idle');
   const [depthImageUri, setDepthImageUri] = useState(null);
+  const [foregroundUri, setForegroundUri] = useState(null);
   const [depthError, setDepthError] = useState(false);
   const [clockLayer, setClockLayer] = useState('top');
   const clockPosition = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
@@ -71,15 +84,22 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
     setActiveTool('Depth');
     setDepthState('analyzing');
     setDepthImageUri(null);
+    setForegroundUri(null);
     setDepthError(false);
     setClockLayer('top');
     clockPosition.setValue({ x: 0, y: 0 });
     depthProgress.setValue(0);
 
     try {
-      const resultUri = await runAIDepth(imageUri);
-      setDepthImageUri(resultUri);
+      const [depthUri, foreground] = await Promise.all([
+        runAIDepth(imageUri),
+        runForegroundSegmentation(imageUri),
+      ]);
+
+      setDepthImageUri(depthUri);
+      setForegroundUri(foreground);
       setDepthState('ready');
+
       Animated.spring(depthProgress, {
         toValue: 1,
         useNativeDriver: true,
@@ -143,11 +163,20 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
                 {
                   opacity: depthProgress.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [0, 0.52],
+                    outputRange: [0, 0.22],
                   }),
                 },
               ]}
             />
+          )}
+
+          {clockLayer === 'behind' && foregroundUri && (
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.foregroundLayer, { opacity: depthProgress }]}
+            >
+              <Animated.Image source={{ uri: foregroundUri }} style={styles.layerImage} />
+            </Animated.View>
           )}
 
           <Animated.View
@@ -169,6 +198,15 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
             <Text style={styles.clock}>09:41</Text>
             <Text style={styles.date}>Monday, October 5</Text>
           </Animated.View>
+
+          {clockLayer !== 'behind' && foregroundUri && (
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.foregroundLayer, { opacity: 0 }]}
+            >
+              <Animated.Image source={{ uri: foregroundUri }} style={styles.layerImage} />
+            </Animated.View>
+          )}
 
           {depthState === 'analyzing' && (
             <View style={[styles.analyzing, { backgroundColor: theme.surface }]}>
@@ -235,6 +273,8 @@ const styles = StyleSheet.create({
   },
   previewImage: { width: '100%', height: '100%' },
   depthPreview: { position: 'absolute', left: 0, top: 0, width: '100%', height: '100%' },
+  foregroundLayer: { position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', zIndex: 4 },
+  layerImage: { width: '100%', height: '100%' },
   clockWidget: {
     position: 'absolute',
     top: 42,
