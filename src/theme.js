@@ -5,11 +5,14 @@ export function useAppTheme() {
   const scheme = useColorScheme();
   const dark = scheme === 'dark';
 
+  // Expo Router's Color API exposes Android Material 3 Dynamic Colors.
+  // Keep the values as native ColorValue objects instead of trying to
+  // convert them to strings in JavaScript.
   if (Platform.OS === 'android') {
     return {
       dark,
       background: Color.android.dynamic.background,
-      surface: Color.android.dynamic.surfaceContainer,
+      surface: Color.android.dynamic.surface,
       surfaceHigh: Color.android.dynamic.surfaceContainerHigh,
       primary: Color.android.dynamic.primary,
       onPrimary: Color.android.dynamic.onPrimary,
