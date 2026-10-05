@@ -16,7 +16,7 @@ export default function BottomNav({ active, onChange, theme }) {
         const selected = active === label;
         return (
           <Pressable key={label} onPress={() => onChange(label)} style={styles.item}>
-            <View style={[styles.iconPill, { backgroundColor: selected ? theme.primary + '25' : 'transparent' }]}>
+            <View style={[styles.iconPill, { backgroundColor: selected ? theme.primaryContainer : 'transparent' }]}>
               <MaterialCommunityIcons
                 name={icon}
                 size={22}
