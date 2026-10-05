@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Animated, Image, PanResponder, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, PanResponder, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const TOOLS = [
@@ -15,6 +15,9 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
   const [clockLayer, setClockLayer] = useState('top');
   const clockPosition = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const depthProgress = useRef(new Animated.Value(0)).current;
+  const depthStateRef = useRef('idle');
+
+  depthStateRef.current = depthState;
 
   const runStandardDepth = () => {
     if (depthState === 'analyzing') return;
@@ -43,10 +46,10 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
 
   const clockPan = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => depthState === 'ready',
-      onStartShouldSetPanResponderCapture: () => depthState === 'ready',
-      onMoveShouldSetPanResponder: () => depthState === 'ready',
-      onMoveShouldSetPanResponderCapture: () => depthState === 'ready',
+      onStartShouldSetPanResponder: () => depthStateRef.current === 'ready',
+      onStartShouldSetPanResponderCapture: () => depthStateRef.current === 'ready',
+      onMoveShouldSetPanResponder: () => depthStateRef.current === 'ready',
+      onMoveShouldSetPanResponderCapture: () => depthStateRef.current === 'ready',
       onPanResponderGrant: () => clockPosition.extractOffset(),
       onPanResponderMove: (_, gesture) => {
         clockPosition.setValue({ x: gesture.dx, y: gesture.dy });
