@@ -163,8 +163,10 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
 
   const handleApplyWallpaper = async () => {
     try {
+      const prepared = await preparedRef.current;
+      const wallpaperUri = prepared?.displayUri || imageUri;
       const foregroundMasks = encodeForegroundMasks({ layers });
-      await applyWallpaper(imageUri, clockRef.current, foregroundMasks);
+      await applyWallpaper(wallpaperUri, clockRef.current, foregroundMasks);
 
       Alert.alert(
         'Zharph',
