@@ -62,6 +62,7 @@ export async function prepareImage(uri) {
 
   return {
     photo,
+    displayUri: display.uri,
     job: {
       base64: smallFile.base64,
       width: smallFile.width,
