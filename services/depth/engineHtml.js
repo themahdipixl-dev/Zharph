@@ -19,7 +19,39 @@ post({type:'progress',stage:'seg-download',pct:0});var seg=await lib.AutoModelFo
 post({type:'progress',stage:'segment',pct:0});var sw=rt(W*512/L,32),sh=rt(H*512/L,32),so=await seg({pixel_values:tensor(imgData(im,sw,sh),sw,sh)}),C=so.logits.dims[1],lh=so.logits.dims[2],lw=so.logits.dims[3],log=so.logits.data,id=seg.config.id2label,g=names(id,C);try{await seg.dispose()}catch(e){}
 var depth=null;try{post({type:'progress',stage:'depth-download',pct:0});var dm=await lib.AutoModelForDepthEstimation.from_pretrained(DEP,{device:'wasm',dtype:'q8',progress_callback:function(e){if(e.status==='progress')post({type:'progress',stage:'depth-download',pct:Math.round(e.progress||0)})}}),dw=rt(W*336/L,14),dh=rt(H*336/L,14),do_=await dm({pixel_values:tensor(imgData(im,dw,dh),dw,dh)}),dd=do_.predicted_depth.dims,raw=do_.predicted_depth.data,rd=resize(raw,dd[dd.length-1],dd[dd.length-2],W,H),mn=Infinity,mx=-Infinity;for(var z=0;z<rd.length;z++){mn=Math.min(mn,rd[z]);mx=Math.max(mx,rd[z]);}depth=new Float32Array(rd.length);for(z=0;z<rd.length;z++)depth[z]=(rd[z]-mn)/(mx-mn||1);try{await dm.dispose()}catch(e){}post({type:'progress',stage:'depth',pct:100});}catch(e){post({type:'warn',message:'Depth model unavailable; using semantic layers only'});}
 post({type:'progress',stage:'refine',pct:0});var groups=[],total=lh*lw;
-for(var k=0;k<g.list.length;k++){var low=new Uint8Array(total),count=0;for(var q=0;q<total;q++){var best=-1,bv=-1;for(var c=0;c<C;c++){var gi=g.map[c];if(gi!==k)continue;var v=log[c*total+q];if(v>bv){bv=v;best=c;}}if(best>=0){low[q]=1;count++;}}if(count/total<.008)continue;var mask=new Uint8Array(W*H);for(var y=0;y<H;y++)for(var x=0;x<W;x++){var sx=Math.min(lw-1,Math.floor(x*lw/W)),sy=Math.min(lh-1,Math.floor(y*lh/H));mask[y*W+x]=low[sy*lw+sx]?1:0;}mask=clean(mask,W,H);var area=0;for(var p=0;p<mask.length;p++)area+=mask[p];if(area/(W*H)<.006)continue;var near=null;if(depth){var bins=new Uint32Array(32),tot=0;for(p=0;p<mask.length;p++)if(mask[p]){bins[Math.min(31,Math.floor(depth[p]*32))]++;tot++;}var ac=0;for(var b=0;b<32;b++){ac+=bins[b];if(ac>=tot/2){near=(b+.5)/32;break;}}}groups.push({id:'layer-'+(groups.length+1),label:g.list[k],group:g.list[k],area:area/(W*H),nearness:near,mask:png(mask,W,H)});}
+var winnerGroup=new Int16Array(total);winnerGroup.fill(-1);
+for(var q=0;q<total;q++){
+var best=-1,bv=-Infinity;
+for(var c=0;c<C;c++){
+var v=log[c*total+q];
+if(v>bv){bv=v;best=c;}
+}
+if(best>=0)winnerGroup[q]=g.map[best];
+}
+for(var k=0;k<g.list.length;k++){
+var low=new Uint8Array(total),count=0;
+for(var q=0;q<total;q++)if(winnerGroup[q]===k){low[q]=1;count++;}
+if(count/total<.008)continue;
+var mask=new Uint8Array(W*H);
+for(var y=0;y<H;y++)for(var x=0;x<W;x++){
+var sx=Math.min(lw-1,Math.floor(x*lw/W)),sy=Math.min(lh-1,Math.floor(y*lh/H));
+mask[y*W+x]=low[sy*lw+sx]?1:0;
+}
+mask=clean(mask,W,H);
+var area=0;
+for(var p=0;p<mask.length;p++)area+=mask[p];
+if(area/(W*H)<.006)continue;
+var near=null;
+if(depth){
+var bins=new Uint32Array(32),tot=0;
+for(p=0;p<mask.length;p++)if(mask[p]){
+bins[Math.min(31,Math.floor(depth[p]*32))]++;tot++;
+}
+var ac=0;
+for(var b=0;b<32;b++){ac+=bins[b];if(ac>=tot/2){near=(b+.5)/32;break;}}
+}
+groups.push({id:'layer-'+(groups.length+1),label:g.list[k],group:g.list[k],area:area/(W*H),nearness:near,mask:png(mask,W,H)});
+}
 groups.sort(function(a,b){if(a.group==='Sky')return 1;if(b.group==='Sky')return -1;if(a.nearness!=null&&b.nearness!=null)return b.nearness-a.nearness;return b.area-a.area;});post({type:'result',width:W,height:H,layers:groups.slice(0,10),depthUsed:!!depth,timings:{total:0}});}catch(e){fail('analyze',e);}};
 init();
 })();
