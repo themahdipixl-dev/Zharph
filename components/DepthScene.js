@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Platform } from 'react-native';
+import ClockWidget from './ClockWidget';
 import {
   Canvas,
   FilterMode,
@@ -18,7 +18,6 @@ export const CLOCK_BOX_W = 0.64;
 export const CLOCK_BOX_H = 0.3;
 export const DEFAULT_CLOCK = { nx: (1 - CLOCK_BOX_W) / 2, ny: 0.07 };
 
-const TIME_TEXT = '09:41';
 const SAMPLING = FilterMode && MipmapMode
   ? { filter: FilterMode.Linear, mipmap: MipmapMode.Linear }
   : undefined;
@@ -43,36 +42,6 @@ export function clampClock(clock, width, height) {
   };
 }
 
-function makeFont(size) {
-  try {
-    const font = matchFont({
-      fontFamily: Platform.select({ ios: 'Helvetica Neue', default: 'sans-serif-light' }),
-      fontSize: size,
-      fontWeight: 'normal',
-    });
-    if (font) return font;
-  } catch (error) {
-    return Skia.Font(undefined, size);
-  }
-  return Skia.Font(undefined, size);
-}
-
-function textWidth(font, text, size) {
-  try {
-    return font.measureText(text).width;
-  } catch (error) {
-    return text.length * size * 0.55;
-  }
-}
-
-function formatDate() {
-  try {
-    return new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-  } catch (error) {
-    return '';
-  }
-}
-
 export function SceneContent({ width, height, photo, layers, clock, selectedId, showHighlight }) {
   const rect = useMemo(
     () => coverRect(width, height, photo.width(), photo.height()),
@@ -82,8 +51,7 @@ export function SceneContent({ width, height, photo, layers, clock, selectedId, 
   const dateSize = width * 0.05;
   const timeFont = useMemo(() => makeFont(timeSize), [timeSize]);
   const dateFont = useMemo(() => makeFont(dateSize), [dateSize]);
-  const dateText = useMemo(formatDate, []);
-
+  
   const box = clockBox(width, height, clock);
   const timeX = (box.w - textWidth(timeFont, TIME_TEXT, timeSize)) / 2;
   const dateX = (box.w - textWidth(dateFont, dateText, dateSize)) / 2;
