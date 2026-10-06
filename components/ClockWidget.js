@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
-import { Group, Shadow, SkText, matchFont, Skia } from '@shopify/react-native-skia';
+import { Group, Shadow, Text as SkText, matchFont, Skia } from '@shopify/react-native-skia';
 
 function makeFont(size) {
   try {
