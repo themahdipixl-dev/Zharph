@@ -28,7 +28,8 @@
     "@tensorflow/tfjs-backend-cpu": "3.21.0",
     "@tensorflow/tfjs-backend-webgl": "3.21.0",
     "react-native-webview": "13.16.0",
-    "expo-image-manipulator": "~55.0.21"
+    "expo-image-manipulator": "~55.0.21",
+    "react-dom": "19.2.0"
   },
   "private": true
 }
