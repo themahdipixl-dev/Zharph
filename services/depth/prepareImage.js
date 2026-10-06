@@ -14,41 +14,58 @@ function blobToDataUri(blob) {
 }
 
 async function resolveSource(uri) {
-  if (!/^https?:\/\//i.test(uri)) return uri;
+  if (!/^https?:\\/\\//i.test(uri)) return uri;
   const response = await fetch(uri);
   if (!response.ok) throw new Error('Could not download the image');
   return blobToDataUri(await response.blob());
 }
 
-export async function prepareImage(uri) {
-  const source = await resolveSource(uri);
-  const full = await ImageManipulator.manipulate(source).renderAsync();
-  const longSide = Math.max(full.width, full.height);
-  let display = full;
-  if (longSide > DISPLAY_LONG_SIDE) {
-    const k = DISPLAY_LONG_SIDE / longSide;
-    display = await ImageManipulator.manipulate(full)
-      .resize({ width: Math.round(full.width * k) })
-      .renderAsync();
-  }
-  const displayFile = await display.saveAsync({
+async function render(source, actions = []) {
+  return ImageManipulator.manipulateAsync(source, actions, {
     format: ImageManipulator.SaveFormat.JPEG,
     compress: 0.92,
   });
+}
+
+export async function prepareImage(uri) {
+  const source = await resolveSource(uri);
+
+  const full = await render(source);
+  const longSide = Math.max(full.width, full.height);
+
+  let display = full;
+  if (longSide > DISPLAY_LONG_SIDE) {
+    const k = DISPLAY_LONG_SIDE / longSide;
+    display = await render(full.uri, [
+      { resize: { width: Math.round(full.width * k) } },
+    ]);
+  }
+
   const k2 = Math.min(1, ANALYSIS_LONG_SIDE / Math.max(display.width, display.height));
-  const small = await ImageManipulator.manipulate(display)
-    .resize({ width: Math.max(64, Math.round(display.width * k2)) })
-    .renderAsync();
-  const smallFile = await small.saveAsync({
-    format: ImageManipulator.SaveFormat.JPEG,
-    compress: 0.9,
-    base64: true,
-  });
-  const data = await Skia.Data.fromURI(displayFile.uri);
+  const small = await render(display.uri, [
+    { resize: { width: Math.max(64, Math.round(display.width * k2)) } },
+  ]);
+
+  const smallFile = await ImageManipulator.manipulateAsync(
+    small.uri,
+    [],
+    {
+      format: ImageManipulator.SaveFormat.JPEG,
+      compress: 0.9,
+      base64: true,
+    },
+  );
+
+  const data = await Skia.Data.fromURI(display.uri);
   const photo = Skia.Image.MakeImageFromEncoded(data);
   if (!photo) throw new Error('Could not decode the image');
+
   return {
     photo,
-    job: { base64: smallFile.base64, width: smallFile.width, height: smallFile.height },
+    job: {
+      base64: smallFile.base64,
+      width: smallFile.width,
+      height: smallFile.height,
+    },
   };
 }
