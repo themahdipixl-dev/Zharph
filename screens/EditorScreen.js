@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { requireOptionalNativeModule } from 'expo';
 import {
   ActivityIndicator,
   PanResponder,
@@ -8,12 +9,14 @@ import {
   StyleSheet,
   Text,
   View,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import DepthEngine from '../components/DepthEngine';
 import DepthScene, { DEFAULT_CLOCK, clampClock, clockBox } from '../components/DepthScene';
 import { prepareImage } from '../services/depth/prepareImage';
 import { buildLayerList, describeProgress } from '../services/depth/layers';
+import { applyWallpaper } from '../modules/zharph-wallpaper';
 
 const TOOLS = [
   ['layers-outline', 'Depth'],
@@ -158,6 +161,21 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
     setClock(next);
   }
 
+  const handleApplyWallpaper = async () => {
+    try {
+      await applyWallpaper(imageUri, clockRef.current);
+      Alert.alert(
+        'Zharph',
+        'Wallpaper ready. Android will open the system wallpaper confirmation screen.',
+      );
+    } catch (error) {
+      Alert.alert(
+        'Could not apply wallpaper',
+        (error && error.message) || 'Please install a Zharph Android build and try again.',
+      );
+    }
+  };
+
   const clockPan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: (event) => {
@@ -214,7 +232,7 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
           <MaterialCommunityIcons name="arrow-left" size={25} color={theme.onSurface} />
         </Pressable>
         <Text style={[styles.title, { color: theme.onSurface }]}>Edit wallpaper</Text>
-        <Pressable style={styles.button}>
+        <Pressable onPress={handleApplyWallpaper} style={styles.button}>
           <MaterialCommunityIcons name="check" size={25} color={theme.primary} />
         </Pressable>
       </View>
