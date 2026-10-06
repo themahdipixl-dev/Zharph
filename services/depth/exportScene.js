@@ -1,6 +1,10 @@
 import React from 'react';
-import { ImageFormat, drawAsImage } from '@shopify/react-native-skia';
-import { Group, Image as SkImage, Mask } from '@shopify/react-native-skia';
+import {
+  BlendMode,
+  ImageFormat,
+  Skia,
+  drawAsImage,
+} from '@shopify/react-native-skia';
 import { SceneContent } from '../../components/DepthScene';
 
 export function renderWallpaperPng({ photo, layers, clock, width, height }) {
@@ -25,37 +29,40 @@ export function renderForegroundPng({ photo, layers }) {
 
   const width = photo.width();
   const height = photo.height();
+  const rect = Skia.XYWHRect(0, 0, width, height);
 
-  const image = drawAsImage(
-    <Group>
-      {front.map((layer) => (
-        <Mask
-          key={layer.id}
-          mode="alpha"
-          mask={
-            <SkImage
-              image={layer.mask}
-              x={0}
-              y={0}
-              width={width}
-              height={height}
-              fit="fill"
-            />
-          }
-        >
-          <SkImage
-            image={photo}
-            x={0}
-            y={0}
-            width={width}
-            height={height}
-            fit="fill"
-          />
-        </Mask>
-      ))}
-    </Group>,
-    { width, height },
-  );
+  const maskSurface = Skia.Surface.Make(width, height);
+  const outputSurface = Skia.Surface.Make(width, height);
 
-  return image.encodeToBase64(ImageFormat.PNG, 100);
+  if (!maskSurface || !outputSurface) {
+    throw new Error('Could not create the foreground render surface');
+  }
+
+  const maskCanvas = maskSurface.getCanvas();
+  maskCanvas.clear(Skia.Color('transparent'));
+
+  const maskPaint = Skia.Paint();
+  for (const layer of front) {
+    maskCanvas.drawImageRect(layer.mask, rect, rect, maskPaint);
+  }
+
+  const outputCanvas = outputSurface.getCanvas();
+  outputCanvas.clear(Skia.Color('transparent'));
+
+  outputCanvas.saveLayer(rect, Skia.Paint());
+  outputCanvas.drawImageRect(photo, rect, rect, Skia.Paint());
+
+  const blendPaint = Skia.Paint();
+  blendPaint.setBlendMode(BlendMode.DstIn);
+  const maskImage = maskSurface.makeImageSnapshot();
+  outputCanvas.drawImageRect(maskImage, rect, rect, blendPaint);
+  outputCanvas.restore();
+
+  const image = outputSurface.makeImageSnapshot();
+  const base64 = image.encodeToBase64(ImageFormat.PNG, 100);
+
+  maskSurface.dispose?.();
+  outputSurface.dispose?.();
+
+  return base64;
 }
