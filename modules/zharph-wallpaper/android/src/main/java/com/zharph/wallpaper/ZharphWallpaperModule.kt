@@ -18,22 +18,25 @@ class ZharphWallpaperModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("ZharphWallpaper")
 
-    AsyncFunction("applyWallpaper") { imageUri: String, foregroundBase64: String, nx: Double, ny: Double ->
+    AsyncFunction("applyWallpaper") { imageUri: String, foregroundMasks: List<String>, nx: Double, ny: Double ->
       val context = requireNotNull(appContext.reactContext)
       val target = File(context.filesDir, "zharph-wallpaper.jpg")
       copyImage(context, imageUri, target)
 
-      val foregroundTarget = File(context.filesDir, "zharph-foreground.png")
-      if (foregroundBase64.isBlank()) {
-        if (foregroundTarget.exists()) foregroundTarget.delete()
-      } else {
-        writeBase64Png(foregroundBase64, foregroundTarget)
+      val maskDir = File(context.filesDir, "zharph-masks")
+      if (maskDir.exists()) maskDir.deleteRecursively()
+
+      if (foregroundMasks.isNotEmpty()) {
+        maskDir.mkdirs()
+        foregroundMasks.forEachIndexed { index, base64 ->
+          writeBase64Png(base64, File(maskDir, "mask-$index.png"))
+        }
       }
 
       context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         .edit()
         .putString(KEY_IMAGE, target.absolutePath)
-        .putString(KEY_FOREGROUND, if (foregroundTarget.exists()) foregroundTarget.absolutePath else null)
+        .putString(KEY_MASK_DIR, if (foregroundMasks.isNotEmpty()) maskDir.absolutePath else null)
         .putFloat(KEY_NX, nx.toFloat().coerceIn(0f, 1f))
         .putFloat(KEY_NY, ny.toFloat().coerceIn(0f, 1f))
         .apply()
@@ -108,7 +111,7 @@ class ZharphWallpaperModule : Module() {
   companion object {
     const val PREFS = "zharph_wallpaper"
     const val KEY_IMAGE = "image_path"
-    const val KEY_FOREGROUND = "foreground_path"
+    const val KEY_MASK_DIR = "mask_dir"
     const val KEY_NX = "clock_nx"
     const val KEY_NY = "clock_ny"
   }
