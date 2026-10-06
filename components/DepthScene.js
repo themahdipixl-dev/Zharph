@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import ClockWidget from './ClockWidget';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 import {
   Canvas,
   FilterMode,
@@ -30,7 +30,12 @@ export function coverRect(boxW, boxH, imgW, imgH) {
 }
 
 export function clockBox(width, height, clock) {
-  return { x: clock.nx * width, y: clock.ny * height, w: CLOCK_BOX_W * width, h: CLOCK_BOX_H * width };
+  return {
+    x: clock.nx * width,
+    y: clock.ny * height,
+    w: CLOCK_BOX_W * width,
+    h: CLOCK_BOX_H * width,
+  };
 }
 
 export function clampClock(clock, width, height) {
@@ -42,7 +47,62 @@ export function clampClock(clock, width, height) {
   };
 }
 
+function makeFont(size) {
+  try {
+    const font = matchFont({
+      fontFamily: Platform.select({ ios: 'Helvetica Neue', default: 'sans-serif-light' }),
+      fontSize: size,
+      fontWeight: 'normal',
+    });
+    if (font) return font;
+  } catch (error) {
+    return Skia.Font(undefined, size);
+  }
+  return Skia.Font(undefined, size);
+}
+
+function textWidth(font, text, size) {
+  try {
+    return font.measureText(text).width;
+  } catch (error) {
+    return text.length * size * 0.55;
+  }
+}
+
+function formatTime(date) {
+  try {
+    const cycle = new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hourCycle;
+    const hour12 = cycle === 'h11' || cycle === 'h12';
+    return date.toLocaleTimeString(undefined, {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12,
+    });
+  } catch (error) {
+    return date.toLocaleTimeString();
+  }
+}
+
+function formatDate(date) {
+  try {
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    });
+  } catch (error) {
+    return '';
+  }
+}
+
 export function SceneContent({ width, height, photo, layers, clock, selectedId, showHighlight }) {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const rect = useMemo(
     () => coverRect(width, height, photo.width(), photo.height()),
     [width, height, photo],
@@ -51,9 +111,10 @@ export function SceneContent({ width, height, photo, layers, clock, selectedId, 
   const dateSize = width * 0.05;
   const timeFont = useMemo(() => makeFont(timeSize), [timeSize]);
   const dateFont = useMemo(() => makeFont(dateSize), [dateSize]);
-  
+  const timeText = formatTime(now);
+  const dateText = formatDate(now);
   const box = clockBox(width, height, clock);
-  const timeX = (box.w - textWidth(timeFont, TIME_TEXT, timeSize)) / 2;
+  const timeX = (box.w - textWidth(timeFont, timeText, timeSize)) / 2;
   const dateX = (box.w - textWidth(dateFont, dateText, dateSize)) / 2;
   const timeY = timeSize * 0.95;
   const dateY = timeY + dateSize * 1.5;
@@ -61,20 +122,36 @@ export function SceneContent({ width, height, photo, layers, clock, selectedId, 
   const selected = showHighlight ? layers.find((layer) => layer.id === selectedId) : null;
 
   const image = (key, img) => (
-    <SkImage key={key} image={img} x={rect.x} y={rect.y} width={rect.width} height={rect.height} fit="fill" sampling={SAMPLING} />
+    <SkImage
+      key={key}
+      image={img}
+      x={rect.x}
+      y={rect.y}
+      width={rect.width}
+      height={rect.height}
+      fit="fill"
+      sampling={SAMPLING}
+    />
   );
 
   return (
     <Group>
       {image('photo', photo)}
       <Group transform={[{ translateX: box.x }, { translateY: box.y }]}>
-        <SkText x={timeX} y={timeY} text={TIME_TEXT} font={timeFont} color="white">
+        <SkText x={timeX} y={timeY} text={timeText} font={timeFont} color="white">
           <Shadow dx={0} dy={2} blur={8} color="rgba(0,0,0,0.35)" />
         </SkText>
-        {dateText ? <SkText x={dateX} y={dateY} text={dateText} font={dateFont} color="white" opacity={0.92}><Shadow dx={0} dy={1} blur={5} color="rgba(0,0,0,0.35)" /></SkText> : null}
+        {dateText ? (
+          <SkText x={dateX} y={dateY} text={dateText} font={dateFont} color="white" opacity={0.92}>
+            <Shadow dx={0} dy={1} blur={5} color="rgba(0,0,0,0.35)" />
+          </SkText>
+        ) : null}
       </Group>
       {front.length > 0 && (
-        <Mask mode="alpha" mask={<Group>{front.map((layer) => image('m' + layer.id, layer.mask))}</Group>}>
+        <Mask
+          mode="alpha"
+          mask={<Group>{front.map((layer) => image('m' + layer.id, layer.mask))}</Group>}
+        >
           {image('front', photo)}
         </Mask>
       )}
@@ -89,5 +166,9 @@ export function SceneContent({ width, height, photo, layers, clock, selectedId, 
 
 export default function DepthScene({ width, height, ...rest }) {
   if (!rest.photo || !width || !height) return null;
-  return <Canvas style={{ width, height }}><SceneContent width={width} height={height} {...rest} /></Canvas>;
+  return (
+    <Canvas style={{ width, height }}>
+      <SceneContent width={width} height={height} {...rest} />
+    </Canvas>
+  );
 }
