@@ -56,15 +56,16 @@ function textWidth(font, text, size) {
   }
 }
 
-export default function ClockWidget({ box, timeSize, dateSize, color = 'white' }) {
+export default function ClockWidget({ box, timeSize, dateSize, color = 'white', live = true }) {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
+    if (!live) return undefined;
     const update = () => setNow(new Date());
     const timer = setInterval(update, 1000);
     update();
     return () => clearInterval(timer);
-  }, []);
+  }, [live]);
 
   const timeText = useMemo(() => formatTime(now), [now]);
   const dateText = useMemo(() => formatDate(now), [now]);
