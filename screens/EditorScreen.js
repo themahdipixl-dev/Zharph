@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { requireOptionalNativeModule } from 'expo';
 import {
   ActivityIndicator,
   PanResponder,
