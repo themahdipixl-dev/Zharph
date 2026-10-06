@@ -14,7 +14,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import DepthEngine from '../components/DepthEngine';
 import DepthScene, { DEFAULT_CLOCK, clampClock, clockBox } from '../components/DepthScene';
 import { prepareImage } from '../services/depth/prepareImage';
-import { encodeForegroundMasks } from '../services/depth/exportScene';
+import { encodeForegroundCutout } from '../services/depth/exportScene';
 import { buildLayerList, describeProgress } from '../services/depth/layers';
 import { applyWallpaper } from '../modules/zharph-wallpaper';
 
@@ -165,8 +165,8 @@ export default function EditorScreen({ imageUri, onBack, theme }) {
     try {
       const prepared = await preparedRef.current;
       const wallpaperUri = prepared?.displayUri || imageUri;
-      const foregroundMasks = encodeForegroundMasks({ layers });
-      await applyWallpaper(wallpaperUri, clockRef.current, foregroundMasks);
+      const foregroundCutout = scene ? encodeForegroundCutout({ photo: scene.photo, layers }) : null;
+      await applyWallpaper(wallpaperUri, clockRef.current, foregroundCutout);
 
       Alert.alert(
         'Zharph',
