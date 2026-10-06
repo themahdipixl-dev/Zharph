@@ -95,13 +95,14 @@ function formatDate(date) {
   }
 }
 
-export function SceneContent({ width, height, photo, layers, clock, selectedId, showHighlight }) {
+export function SceneContent({ width, height, photo, layers, clock, selectedId, showHighlight, live = true }) {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
+    if (!live) return undefined;
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [live]);
 
   const rect = useMemo(
     () => coverRect(width, height, photo.width(), photo.height()),
