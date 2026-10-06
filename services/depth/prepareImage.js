@@ -14,7 +14,7 @@ function blobToDataUri(blob) {
 }
 
 async function resolveSource(uri) {
-  if (!/^https?:\\/\\//i.test(uri)) return uri;
+  if (!/^https?:\/\//i.test(uri)) return uri;
   const response = await fetch(uri);
   if (!response.ok) throw new Error('Could not download the image');
   return blobToDataUri(await response.blob());
