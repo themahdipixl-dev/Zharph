@@ -25,6 +25,7 @@ class ZharphWallpaperService : WallpaperService() {
     private val handler = Handler(Looper.getMainLooper())
     private var visible = false
     private var image: Bitmap? = null
+    private var foreground: Bitmap? = null
 
     private val redraw = object : Runnable {
       override fun run() {
@@ -37,7 +38,7 @@ class ZharphWallpaperService : WallpaperService() {
     override fun onCreate(surfaceHolder: SurfaceHolder) {
       super.onCreate(surfaceHolder)
       surfaceHolder.setFormat(android.graphics.PixelFormat.RGBA_8888)
-      loadImage()
+      loadImages()
     }
 
     override fun onSurfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
@@ -53,7 +54,7 @@ class ZharphWallpaperService : WallpaperService() {
     override fun onVisibilityChanged(isVisible: Boolean) {
       visible = isVisible
       if (isVisible) {
-        loadImage()
+        loadImages()
         draw()
         scheduleNextMinute()
       } else {
@@ -69,7 +70,9 @@ class ZharphWallpaperService : WallpaperService() {
     override fun onDestroy() {
       handler.removeCallbacks(redraw)
       image?.recycle()
+      foreground?.recycle()
       image = null
+      foreground = null
       super.onDestroy()
     }
 
@@ -78,13 +81,23 @@ class ZharphWallpaperService : WallpaperService() {
       return WallpaperColors.fromBitmap(bitmap)
     }
 
-    private fun loadImage() {
+    private fun loadImages() {
       val prefs = getSharedPreferences(ZharphWallpaperModule.PREFS, MODE_PRIVATE)
-      val path = prefs.getString(ZharphWallpaperModule.KEY_IMAGE, null) ?: return
-      val file = File(path)
-      if (!file.exists()) return
+      val imagePath = prefs.getString(ZharphWallpaperModule.KEY_IMAGE, null)
+      val foregroundPath = prefs.getString(ZharphWallpaperModule.KEY_FOREGROUND, null)
+
       image?.recycle()
-      image = BitmapFactory.decodeFile(file.absolutePath)
+      foreground?.recycle()
+
+      image = imagePath?.let { path ->
+        val file = File(path)
+        if (file.exists()) BitmapFactory.decodeFile(file.absolutePath) else null
+      }
+
+      foreground = foregroundPath?.let { path ->
+        val file = File(path)
+        if (file.exists()) BitmapFactory.decodeFile(file.absolutePath) else null
+      }
     }
 
     private fun scheduleNextMinute() {
@@ -106,7 +119,15 @@ class ZharphWallpaperService : WallpaperService() {
           canvas.drawBitmap(bitmap, src, dst, bitmapPaint)
         }
 
+        // The clock is intentionally drawn between the background and
+        // the selected foreground layers.
         drawClock(canvas, width, height)
+
+        foreground?.let { bitmap ->
+          val src = centerCropSource(bitmap, width, height)
+          val dst = Rect(0, 0, width.toInt(), height.toInt())
+          canvas.drawBitmap(bitmap, src, dst, bitmapPaint)
+        }
       } finally {
         surfaceHolder.unlockCanvasAndPost(canvas)
       }
@@ -125,6 +146,7 @@ class ZharphWallpaperService : WallpaperService() {
       val prefs = getSharedPreferences(ZharphWallpaperModule.PREFS, MODE_PRIVATE)
       val nx = prefs.getFloat(ZharphWallpaperModule.KEY_NX, 0.18f)
       val ny = prefs.getFloat(ZharphWallpaperModule.KEY_NY, 0.07f)
+
       val boxWidth = width * 0.64f
       val boxHeight = width * 0.30f
       val left = nx * width
@@ -132,27 +154,27 @@ class ZharphWallpaperService : WallpaperService() {
       val centerX = left + boxWidth / 2f
 
       val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-      val date = SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(Date())
+      val date = SimpleDateFormat("EEEE, MMMM d", Locale.US).format(Date())
 
       timePaint.textSize = width * 0.22f
       datePaint.textSize = width * 0.05f
       timePaint.textAlign = Paint.Align.CENTER
       datePaint.textAlign = Paint.Align.CENTER
 
-      canvas.drawText(time, centerX, top + boxHeight * 0.61f, timePaint)
-      canvas.drawText(date, centerX, top + boxHeight * 0.84f, datePaint)
+      canvas.drawText(time, centerX, top + timePaint.textSize * 0.95f, timePaint)
+      canvas.drawText(date, centerX, top + timePaint.textSize * 0.95f + datePaint.textSize * 1.5f, datePaint)
     }
 
     private val bitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val timePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
       color = Color.WHITE
-      typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL)
-      setShadowLayer(10f, 0f, 2f, 0x66000000)
+      typeface = android.graphics.Typeface.create("sans-serif-light", android.graphics.Typeface.NORMAL)
+      setShadowLayer(8f, 0f, 2f, 0x59000000)
     }
     private val datePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-      color = 0xE6FFFFFF.toInt()
-      typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL)
-      setShadowLayer(6f, 0f, 1f, 0x66000000)
+      color = 0xEBFFFFFF.toInt()
+      typeface = android.graphics.Typeface.create("sans-serif-light", android.graphics.Typeface.NORMAL)
+      setShadowLayer(5f, 0f, 1f, 0x59000000)
     }
   }
 }
