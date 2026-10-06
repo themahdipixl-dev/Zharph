@@ -20,7 +20,14 @@ export function encodeForegroundCutout({ photo, layers }) {
   maskPaint.setAntiAlias(true);
 
   for (const layer of foreground) {
-    maskCanvas.drawImage(layer.mask, 0, 0, maskPaint);
+    const mask = layer.mask;
+    const scaleX = width / mask.width();
+    const scaleY = height / mask.height();
+
+    maskCanvas.save();
+    maskCanvas.scale(scaleX, scaleY);
+    maskCanvas.drawImage(mask, 0, 0, maskPaint);
+    maskCanvas.restore();
   }
 
   const combinedMask = maskSurface.makeImageSnapshot();
