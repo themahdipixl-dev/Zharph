@@ -6,8 +6,6 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffXfermode
 import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
@@ -86,7 +84,7 @@ class ZharphWallpaperService : WallpaperService() {
     private fun loadImages() {
       val prefs = getSharedPreferences(ZharphWallpaperModule.PREFS, MODE_PRIVATE)
       val imagePath = prefs.getString(ZharphWallpaperModule.KEY_IMAGE, null)
-      val maskDirPath = prefs.getString(ZharphWallpaperModule.KEY_MASK_DIR, null)
+      val foregroundPath = prefs.getString(ZharphWallpaperModule.KEY_FOREGROUND, null)
 
       image?.recycle()
       foreground?.recycle()
@@ -98,48 +96,10 @@ class ZharphWallpaperService : WallpaperService() {
         if (file.exists()) BitmapFactory.decodeFile(file.absolutePath) else null
       }
 
-      if (image != null && !maskDirPath.isNullOrBlank()) {
-        foreground = buildForeground(File(maskDirPath), image!!)
+      foreground = foregroundPath?.let { path ->
+        val file = File(path)
+        if (file.exists()) BitmapFactory.decodeFile(file.absolutePath) else null
       }
-    }
-
-    private fun buildForeground(maskDir: File, source: Bitmap): Bitmap? {
-      val maskFiles = maskDir.listFiles { file ->
-        file.isFile && file.name.startsWith("mask-") && file.name.endsWith(".png")
-      }?.sortedBy { it.name } ?: return null
-
-      if (maskFiles.isEmpty()) return null
-
-      val output = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
-      val canvas = Canvas(output)
-      canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
-
-      val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-      canvas.drawBitmap(source, 0f, 0f, paint)
-
-      val combinedMask = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ALPHA_8)
-      val maskCanvas = Canvas(combinedMask)
-      maskCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
-
-      val maskPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-      for (file in maskFiles) {
-        val mask = BitmapFactory.decodeFile(file.absolutePath) ?: continue
-        maskCanvas.drawBitmap(
-          mask,
-          Rect(0, 0, mask.width, mask.height),
-          Rect(0, 0, source.width, source.height),
-          maskPaint,
-        )
-        mask.recycle()
-      }
-
-      val cutPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-      cutPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
-      canvas.drawBitmap(combinedMask, 0f, 0f, cutPaint)
-      cutPaint.xfermode = null
-      combinedMask.recycle()
-
-      return output
     }
 
     private fun scheduleNextMinute() {
