@@ -117,12 +117,14 @@ class ZharphWallpaperService : WallpaperService() {
       val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
       canvas.drawBitmap(source, 0f, 0f, paint)
 
-      val maskPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-      maskPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
+      val combinedMask = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ALPHA_8)
+      val maskCanvas = Canvas(combinedMask)
+      maskCanvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
 
+      val maskPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
       for (file in maskFiles) {
         val mask = BitmapFactory.decodeFile(file.absolutePath) ?: continue
-        canvas.drawBitmap(
+        maskCanvas.drawBitmap(
           mask,
           Rect(0, 0, mask.width, mask.height),
           Rect(0, 0, source.width, source.height),
@@ -131,7 +133,12 @@ class ZharphWallpaperService : WallpaperService() {
         mask.recycle()
       }
 
-      maskPaint.xfermode = null
+      val cutPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+      cutPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
+      canvas.drawBitmap(combinedMask, 0f, 0f, cutPaint)
+      cutPaint.xfermode = null
+      combinedMask.recycle()
+
       return output
     }
 
