@@ -1,4 +1,4 @@
-import { BlendMode, ImageFormat, Paint, Skia } from '@shopify/react-native-skia';
+import { BlendMode, ImageFormat, Skia } from '@shopify/react-native-skia';
 
 export function encodeForegroundCutout({ photo, layers }) {
   const foreground = (layers || []).filter((layer) => layer.above && layer.mask);
@@ -16,9 +16,8 @@ export function encodeForegroundCutout({ photo, layers }) {
   const maskCanvas = maskSurface.getCanvas();
   maskCanvas.clear(0x00000000);
 
-  const maskPaint = Paint();
+  const maskPaint = Skia.Paint();
   maskPaint.setAntiAlias(true);
-  maskPaint.setFilterQuality(1);
 
   for (const layer of foreground) {
     maskCanvas.drawImage(layer.mask, 0, 0, maskPaint);
@@ -29,14 +28,12 @@ export function encodeForegroundCutout({ photo, layers }) {
   const outputCanvas = outputSurface.getCanvas();
   outputCanvas.clear(0x00000000);
 
-  const sourcePaint = Paint();
+  const sourcePaint = Skia.Paint();
   sourcePaint.setAntiAlias(true);
-  sourcePaint.setFilterQuality(1);
   outputCanvas.drawImage(photo, 0, 0, sourcePaint);
 
-  const cutPaint = Paint();
+  const cutPaint = Skia.Paint();
   cutPaint.setAntiAlias(true);
-  cutPaint.setFilterQuality(1);
   cutPaint.setBlendMode(BlendMode.DstIn);
   outputCanvas.drawImage(combinedMask, 0, 0, cutPaint);
 
