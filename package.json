@@ -26,9 +26,7 @@
     "@tensorflow-models/deeplab": "0.2.2",
     "@tensorflow/tfjs-converter": "3.21.0",
     "@tensorflow/tfjs-backend-cpu": "3.21.0",
-    "@tensorflow/tfjs-react-native": "1.0.0",
     "@tensorflow/tfjs-backend-webgl": "3.21.0",
-    "@react-native-async-storage/async-storage": "2.2.0",
     "react-native-webview": "13.16.0",
     "expo-image-manipulator": "~55.0.21"
   },
