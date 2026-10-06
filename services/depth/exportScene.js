@@ -11,6 +11,7 @@ export function renderWallpaperPng({ photo, layers, clock, width, height }) {
       layers={layers}
       clock={clock}
       showHighlight={false}
+      live={false}
     />,
     { width, height },
   );
