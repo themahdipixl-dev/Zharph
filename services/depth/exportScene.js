@@ -1,4 +1,10 @@
-import { ImageFormat, Skia } from '@shopify/react-native-skia';
+import {
+  BlendMode,
+  FilterMode,
+  ImageFormat,
+  MipmapMode,
+  Skia,
+} from '@shopify/react-native-skia';
 
 export function encodeForegroundCutout({ photo, layers }) {
   const foreground = (layers || []).filter((layer) => layer.above && layer.mask);
@@ -6,6 +12,7 @@ export function encodeForegroundCutout({ photo, layers }) {
 
   const width = photo.width();
   const height = photo.height();
+
   const maskSurface = Skia.Surface.MakeOffscreen(width, height);
   const outputSurface = Skia.Surface.MakeOffscreen(width, height);
 
@@ -13,27 +20,34 @@ export function encodeForegroundCutout({ photo, layers }) {
     throw new Error('Could not create foreground render surface');
   }
 
+  const transparent = Skia.Color('transparent');
+
   const maskCanvas = maskSurface.getCanvas();
-  maskCanvas.clear(0x00000000);
+  maskCanvas.clear(transparent);
 
   const maskPaint = Skia.Paint();
   maskPaint.setAntiAlias(true);
 
+  const destination = Skia.XYWHRect(0, 0, width, height);
+
   for (const layer of foreground) {
     const mask = layer.mask;
-    const scaleX = width / mask.width();
-    const scaleY = height / mask.height();
+    const source = Skia.XYWHRect(0, 0, mask.width(), mask.height());
 
-    maskCanvas.save();
-    maskCanvas.scale(scaleX, scaleY);
-    maskCanvas.drawImage(mask, 0, 0, maskPaint);
-    maskCanvas.restore();
+    maskCanvas.drawImageRectOptions(
+      mask,
+      source,
+      destination,
+      FilterMode.Linear,
+      MipmapMode.None,
+      maskPaint,
+    );
   }
 
   const combinedMask = maskSurface.makeImageSnapshot();
 
   const outputCanvas = outputSurface.getCanvas();
-  outputCanvas.clear(0x00000000);
+  outputCanvas.clear(transparent);
 
   const sourcePaint = Skia.Paint();
   sourcePaint.setAntiAlias(true);
@@ -41,7 +55,8 @@ export function encodeForegroundCutout({ photo, layers }) {
 
   const cutPaint = Skia.Paint();
   cutPaint.setAntiAlias(true);
-  cutPaint.setBlendMode('dstIn');
+  cutPaint.setBlendMode(BlendMode.DstIn);
+
   outputCanvas.drawImage(combinedMask, 0, 0, cutPaint);
 
   const result = outputSurface.makeImageSnapshot();
@@ -50,7 +65,10 @@ export function encodeForegroundCutout({ photo, layers }) {
   maskSurface.dispose();
   outputSurface.dispose();
 
-  if (!base64) throw new Error('Could not encode the foreground cutout');
+  if (!base64) {
+    throw new Error('Could not encode the foreground cutout');
+  }
+
   return base64;
 }
 
@@ -59,7 +77,11 @@ export function encodeForegroundMasks({ layers }) {
     .filter((layer) => layer.above && layer.mask)
     .map((layer) => {
       const base64 = layer.mask.encodeToBase64(ImageFormat.PNG, 100);
-      if (!base64) throw new Error('Could not encode a foreground layer');
+
+      if (!base64) {
+        throw new Error('Could not encode a foreground layer');
+      }
+
       return base64;
     });
 }
